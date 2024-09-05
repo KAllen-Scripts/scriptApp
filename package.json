@@ -1,0 +1,46 @@
+{
+  "name": "Stokly-Sync",
+  "version": "1.3.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "build": "electron-builder",
+    "postinstall": "electron-rebuild"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^27.3.7",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "electron-reloader": "^1.2.3"
+  },
+  "dependencies": {
+    "axios": "^1.6.8",
+    "better-sqlite3": "^11.1.2",
+    "electron-store": "^8.2.0",
+    "fs-extra": "^11.2.0",
+    "node-schedule": "^2.1.1",
+    "papaparse": "^5.4.1",
+    "path": "^0.12.7"
+  },
+  "build": {
+    "asar": true,
+    "productName": "Stokly Sync",
+    "icon": "C:/Users/kenny/Desktop/StockSync App/stokly icon",
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Stokly Sync"
+    }
+  }
+}
