@@ -1,6 +1,4 @@
 *.csv
 *.txt
 node_modules
-scripts
-package-lock.json
 dist
