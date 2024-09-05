@@ -17,6 +17,7 @@ async function processCSV(sectionData, currentStock) {
                 complete: async (results) => {
                     try {
                         for (const row of results.data) {
+                            if(!sectionStatus[sectionData.sectionId].active){continue}
                             let itemFromdb = await getItems(sectionData.stoklyIdentifier, [row[sectionData.supplierIdentifier.toLowerCase()]]).then(r => { return r[0] });
                             let itemid = itemFromdb?.itemid;
                             if (!itemid){continue}
@@ -98,6 +99,7 @@ async function updateAttributes(sectionData, row, itemFromdb) {
     let update = {
         "attributes": [],
         "appendAttributes": true,
+        itemId: itemFromdb.itemid
     }
 
     let productUpdated = false
@@ -107,14 +109,14 @@ async function updateAttributes(sectionData, row, itemFromdb) {
         if(sectionData.attributes[attribute]){
             if (sectionData?.attributes?.[attribute]?.type == 7){
                 update.attributes.push({
-                    "itemAttributeId": itemFromdb.itemid,
+                    "itemAttributeId": sectionData.attributes[attribute].itemAttributeId,
                     "value": {
                         "amount": row[sectionData.attDict[attribute]]
                     }
                 })
             } else {
                 update.attributes.push({
-                    "itemAttributeId": itemFromdb.itemid,
+                    "itemAttributeId": sectionData.attributes[attribute].itemAttributeId,
                     "value": row[sectionData.attDict[attribute]]
                 })
             }

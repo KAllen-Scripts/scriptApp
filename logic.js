@@ -86,7 +86,7 @@ async function processData(sectionData) {
 
         sectionData.attributes = {}
         promiseArr.push(loopThrough(`https://${enviroment}/v0/item-attributes`, 'size=1000&sortDirection=ASC&sortField=name', `[status]!={1}%26%26[name]=*{${[...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier].join(',')}}`, (attribute) => {
-            sectionData.attributes[attribute.name] = attribute;
+            sectionData.attributes[attribute.name.toLowerCase()] = attribute;
         }));
 
         if (sectionStatus[sectionData.sectionId].inputMode == 'url') {
@@ -130,7 +130,6 @@ async function updateItems(sectionData) {
             try {
                 for(const att of [...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier]){
                     let lowerCaseAtt = att.toLowerCase()
-                    console.log(lowerCaseKeysObj, lowerCaseAtt)
                     if(lowerCaseKeysObj[lowerCaseAtt] != undefined){
                         await upsertItemProperty(lowerCaseKeysObj.itemid, lowerCaseAtt, lowerCaseKeysObj[lowerCaseAtt]);
                     }
