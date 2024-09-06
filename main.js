@@ -118,16 +118,17 @@ function createWindow() {
             }
         });
 
-        ipcMain.handle('upsert-item-cost', async (event, itemId, supplier, supplierSku, cost) => {
+        ipcMain.handle('upsert-item-cost', async (event, itemId, supplier, supplierSku, cost, uomID) => {
             try {
-                const query = `INSERT INTO itemCosts (itemId, supplier, supplierSku, cost)
+                const query = `INSERT INTO itemCosts (itemId, supplier, supplierSku, cost, uomID)
                                VALUES (?, ?, ?, ?)
                                ON CONFLICT(itemId, supplier) DO UPDATE SET 
                                supplierSku = excluded.supplierSku,
-                               cost = excluded.cost`;
+                               cost = excluded.cost,
+                               uomID = excluded.uomID`;
                 const stmt = itemCostsDB.prepare(query);
                 // Store supplierSku and other values without converting them to lowercase
-                const info = stmt.run(itemId.toLowerCase(), supplier.toLowerCase(), supplierSku, cost);
+                const info = stmt.run(itemId.toLowerCase(), supplier.toLowerCase(), supplierSku, cost, uomID);
 
                 return info.changes > 0;
             } catch (error) {

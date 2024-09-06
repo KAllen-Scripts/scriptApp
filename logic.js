@@ -125,13 +125,17 @@ async function processData(sectionData) {
 
 async function updateItems(sectionData) {
     try {
+        let itemsToUpdate = []
         itemsBeingUpdated = true;
         let lastUpdate = await loadData('lastUpdate');
         let updateTimeStamp = new Date().toISOString();
 
-        await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
-            const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
+        let promiseArr = []
+
+        promiseArr.push(await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
             try {
+                itemsToUpdate.push(item.itemId)
+                const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
                 for(const att of [...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier]){
                     let lowerCaseAtt = att.toLowerCase()
                     if(lowerCaseKeysObj[lowerCaseAtt] != undefined){
@@ -142,21 +146,30 @@ async function updateItems(sectionData) {
                 console.error('Error upserting item:', error);
                 throw error;
             }
-        });
+        }).then(async ()=>{
+            if (Object.keys(sectionData.attributes).length) {
+                await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[itemAttributeId]=*{${Object.values(sectionData.attributes).map(obj => obj.itemAttributeId)}}%26%26[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
+                    try {
+                        await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
+                    } catch (error) {
+                        console.error('Error upserting item:', error);
+                        throw error;
+                    }
+                });
+            }
+        }))
 
 
-        
-
-        if (Object.keys(sectionData.attributes).length) {
-            await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[itemAttributeId]=*{${Object.values(sectionData.attributes).map(obj => obj.itemAttributeId)}}%26%26[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
-                try {
-                    await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
-                } catch (error) {
-                    console.error('Error upserting item:', error);
-                    throw error;
+        for (let i = 0; i < array.length; i += batchSize) {
+            const batch = array.slice(i, i + batchSize);
+            
+            promiseAarr.push(requester('get', `https://${enviroment}/v0/units-of-measure?filter=[itemId]=*{${batch.join(',')}}`).then(r=>{
+                for (const UOM of r.data){
+                    upsertItemCost(UOM.itemId, UOM.supplierName, UOM.supplierSku, UOM.cost/UOM.quantityInUnit, )
                 }
-            });
+            }))
         }
+        
 
         await saveData({ lastUpdate: updateTimeStamp });
         itemsBeingUpdated = false;
