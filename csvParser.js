@@ -105,27 +105,33 @@ async function updateAttributes(sectionData, row, itemFromdb) {
     let productUpdated = false
 
     for (const attribute in sectionData.attDict){
-        if(itemFromdb[attribute.toLowerCase()] == row[sectionData.attDict[attribute]]){continue}
+
+        let rowValue = row[sectionData.attDict[attribute].header]
+        if (!isNaN(sectionData.attDict[attribute].mod) && !isNaN(rowValue)){
+            rowValue *= sectionData.attDict[attribute].mod
+        }
+
+        if(itemFromdb[attribute.toLowerCase()] == rowValue){continue}
         if(sectionData.attributes[attribute]){
             if (sectionData?.attributes?.[attribute]?.type == 7){
                 update.attributes.push({
                     "itemAttributeId": sectionData.attributes[attribute].itemAttributeId,
                     "value": {
-                        "amount": row[sectionData.attDict[attribute]]
+                        "amount": rowValue
                     }
                 })
             } else {
                 update.attributes.push({
                     "itemAttributeId": sectionData.attributes[attribute].itemAttributeId,
-                    "value": row[sectionData.attDict[attribute]]
+                    "value": rowValue
                 })
             }
         } else if (attribute.toLowerCase() == 'saleprice'){
             update.salePrice = {
-                "amount": row[sectionData.attDict[attribute]]
+                "amount": rowValue
             }
         } else {
-            update[attribute] = row[sectionData.attDict[attribute]]
+            update[attribute] = rowValue
         }
         productUpdated = true
     }

@@ -55,9 +55,13 @@ async function startSyncForSection(section) {
         attributes.forEach(group => {
             const nameInput = group.querySelector('input[name^="attributeName"]');
             const headerInput = group.querySelector('input[name^="attributeHeader"]');
-            
+
             if (nameInput && headerInput) {
-                sectionData.attDict[nameInput.value.toLowerCase()] = headerInput.value;
+                sectionData.attDict[nameInput.value.toLowerCase()] = {
+                    rawValue: headerInput.value,
+                    header: headerInput.value.split(':::')[0],
+                    mod: 1 + ((headerInput.value.split(':::')[1]) / 100)
+                }
             }
         });
 
