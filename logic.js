@@ -131,7 +131,6 @@ async function updateItems(sectionData) {
         let updateTimeStamp = new Date().toISOString();
 
         let promiseArr = []
-
         promiseArr.push(await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
             try {
                 itemsToUpdate.push(item.itemId)
