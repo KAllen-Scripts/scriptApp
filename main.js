@@ -72,6 +72,8 @@ function createWindow() {
             itemId TEXT COLLATE NOCASE,
             supplier TEXT COLLATE NOCASE,
             supplierSku TEXT COLLATE NOCASE,
+            uomID TEXT COLLATE NOCASE,
+            supplierId TEXT COLLATE NOCASE,
             cost REAL,
             PRIMARY KEY (itemId, supplier)
         )`);
@@ -118,18 +120,25 @@ function createWindow() {
             }
         });
 
-        ipcMain.handle('upsert-item-cost', async (event, itemId, supplier, supplierSku, cost, uomID) => {
+        ipcMain.handle('upsert-item-cost', async (event, itemId, supplier, supplierSku, cost, uomID, supplierId) => {
             try {
-                const query = `INSERT INTO itemCosts (itemId, supplier, supplierSku, cost, uomID)
-                               VALUES (?, ?, ?, ?)
+                // Ensure the column exists in itemCostsDB
+                itemCostsDB.exec(`ALTER TABLE itemCosts ADD COLUMN supplierId TEXT COLLATE NOCASE`);
+            } catch (error) {
+                // Ignore error if column already exists
+            }
+
+            try {
+                const query = `INSERT INTO itemCosts (itemId, supplier, supplierSku, cost, uomID, supplierId)
+                               VALUES (?, ?, ?, ?, ?, ?)
                                ON CONFLICT(itemId, supplier) DO UPDATE SET 
                                supplierSku = excluded.supplierSku,
                                cost = excluded.cost,
-                               uomID = excluded.uomID`;
+                               uomID = excluded.uomID,
+                               supplierId = excluded.supplierId`;
                 const stmt = itemCostsDB.prepare(query);
-                // Store supplierSku and other values without converting them to lowercase
-                const info = stmt.run(itemId.toLowerCase(), supplier.toLowerCase(), supplierSku, cost, uomID);
-
+                const info = stmt.run(itemId.toLowerCase(), supplier.toLowerCase(), supplierSku, cost, uomID, supplierId);
+        
                 return info.changes > 0;
             } catch (error) {
                 console.error('Error upserting item cost:', error);
@@ -137,6 +146,34 @@ function createWindow() {
             }
         });
 
+        ipcMain.handle('get-item-costs', async (event, filters) => {
+            if (typeof filters !== 'object' || Object.keys(filters).length === 0) {
+                throw new Error('Expected a valid filters object with at least one field');
+            }
+        
+            const conditions = [];
+            const values = [];
+        
+            for (const [field, fieldValues] of Object.entries(filters)) {
+                if (!Array.isArray(fieldValues)) {
+                    throw new Error(`Expected an array of values for field "${field}"`);
+                }
+                const placeholders = fieldValues.map(() => '?').join(', ');
+                conditions.push(`LOWER("${field}") IN (${placeholders})`);
+                values.push(...fieldValues.map(v => v.toLowerCase()));
+            }
+        
+            const query = `SELECT * FROM itemCosts WHERE ${conditions.join(' AND ')}`;
+        
+            try {
+                const stmt = itemCostsDB.prepare(query);
+                return stmt.all(values);
+            } catch (error) {
+                console.error('Database error in itemCostsDB:', error);
+                throw error;
+            }
+        });
+        
     } catch (error) {
         console.error('Error setting up databases:', error);
     }

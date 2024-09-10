@@ -13,6 +13,11 @@ async function startSyncForSection(section) {
         const urlInput = section.querySelector('.url-input');
         const fileInput = section.querySelector('.file-input');
 
+        const labelInput = section.querySelector('.section-label-input');
+        if (labelInput) {
+            sectionData.supplier = labelInput.value;
+        }
+
         if (fileInput && fileInput.files.length > 0) {
             sectionData.filepath = fileInput.files[0].path;
         }
@@ -81,7 +86,7 @@ async function processData(sectionData) {
         promiseArr.push(requester('get', `https://${enviroment}/v0/locations?filter=[status]=={0}%26%26[name]=={${sectionData.location}}`).then(r => {
             sectionData['locationId'] = r.data[0].locationId;
             promiseArr.push(requester('get', `https://${enviroment}/v0/locations/${sectionData.locationId}/bins?filter=[name]=={${sectionData.bin}}`).then(res => {
-                sectionData.bin = res.data[0].binId;
+                sectionData.binId = res.data[0].binId;
                 promiseArr.push(loopThrough(`https://${enviroment}/v1/inventory-records`, 'size=1000&sortDirection=ASC&sortField=itemId', `[locationId]=={${sectionData['locationId']}}%26%26([onHand]!={0}||[quarantined]!={0})%26%26[binId]=={${res.data[0].binId}}`, (record) => {
                     currentStock[record.itemId] = record.onHand;
                 }));
@@ -130,8 +135,7 @@ async function updateItems(sectionData) {
         let lastUpdate = await loadData('lastUpdate');
         let updateTimeStamp = new Date().toISOString();
 
-        let promiseArr = []
-        promiseArr.push(await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
+        await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
             try {
                 itemsToUpdate.push(item.itemId)
                 const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
@@ -145,28 +149,32 @@ async function updateItems(sectionData) {
                 console.error('Error upserting item:', error);
                 throw error;
             }
-        }).then(async ()=>{
-            if (Object.keys(sectionData.attributes).length) {
-                await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[itemAttributeId]=*{${Object.values(sectionData.attributes).map(obj => obj.itemAttributeId)}}%26%26[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
-                    try {
-                        await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
-                    } catch (error) {
-                        console.error('Error upserting item:', error);
-                        throw error;
-                    }
-                });
-            }
-        }))
+        })
 
-
-        for (let i = 0; i < array.length; i += batchSize) {
-            const batch = array.slice(i, i + batchSize);
-            
-            promiseAarr.push(requester('get', `https://${enviroment}/v0/units-of-measure?filter=[itemId]=*{${batch.join(',')}}`).then(r=>{
-                for (const UOM of r.data){
-                    upsertItemCost(UOM.itemId, UOM.supplierName, UOM.supplierSku, UOM.cost/UOM.quantityInUnit, )
+        if (Object.keys(sectionData.attributes).length) {
+            await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[itemAttributeId]=*{${Object.values(sectionData.attributes).map(obj => obj.itemAttributeId)}}%26%26[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
+                try {
+                    await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
+                } catch (error) {
+                    console.error('Error upserting item:', error);
+                    throw error;
                 }
-            }))
+            });
+        }
+
+
+
+        for (let i = 0; i < itemsToUpdate.length; i += 200) {
+            const batch = itemsToUpdate.slice(i, i + 200);
+            
+            await loopThrough(`https://${enviroment}/v0/units-of-measure`, 'size=1000&sortDirection=ASC&sortField=supplierSku', `[itemId]=*{${batch.join(',')}}`, async (UOM) => {
+                try {
+                    await upsertItemCost(UOM.itemId, UOM.supplierName, UOM.supplierSku, UOM.cost/UOM.quantityInUnit, UOM.unitOfMeasureId, UOM.supplierId)
+                } catch (error) {
+                    console.error('Error upserting cost:', error);
+                    throw error;
+                }
+            });
         }
         
 

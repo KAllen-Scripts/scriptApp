@@ -12,13 +12,30 @@
     <script defer src="./UI.js"></script>
 </head>
 <body>
+    <div class="form-container">
+        <h1>Stokly Sync</h1>
 
-<div class="form-container">
-    <h1>Stokly Sync</h1>
-    <button type="button" id="addSectionButton" class="add-stock-level-button">Add New Section</button>
-    <form id="myForm">
-        <div id="sectionsContainer"></div>
-    </form>
-</div>
+        <!-- Global Settings Container -->
+        <div class="global-settings-container">
+            <h2>Global Settings</h2>
+
+            <!-- Add input fields for global settings here -->
+            <div class="form-section">
+                <label for="globalApiUrl">Log File Path:</label>
+                <input type="text" id="logFilePath" placeholder="Enter Log File Path">
+            </div>
+            <div class="form-section">
+                <label for="globalApiUrl">Email Address:</label>
+                <input type="text" id="emailAddress" placeholder="Enter Email Address">
+            </div>
+        </div>
+
+        <!-- Sections and Add Section Button -->
+        <button type="button" id="addSectionButton" class="add-stock-level-button">Add New Section</button>
+        <form id="myForm">
+            <div id="sectionsContainer"></div>
+        </form>
+    </div>
 </body>
+
 </html>

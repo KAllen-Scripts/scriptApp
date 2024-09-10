@@ -248,3 +248,20 @@ body {
 .input-group {
     gap: 10px;
 }
+
+/* Style for the global settings container */
+.global-settings-container {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+
+.global-settings-container h2 {
+    margin-top: 0;
+}
+
+.global-settings-container .form-section {
+    margin-bottom: 10px;
+}

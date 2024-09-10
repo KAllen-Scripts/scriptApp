@@ -62,11 +62,28 @@ async function upsertItemProperty(itemId, propertyName, propertyValue) {
     }
 }
 
-async function upsertItemCost(itemId, supplier, supplierSku, cost, uomID) {
+async function upsertItemCost(itemId, supplier, supplierSku, cost, uomID, supplierId) {
     try {
-        await ipcRenderer.invoke('upsert-item-cost', itemId, supplier, supplierSku, cost, uomID);
+        await ipcRenderer.invoke('upsert-item-cost', itemId, supplier, supplierSku, cost, uomID, supplierId);
     } catch (error) {
         console.error('Error upserting item property:', error);
+        throw error;
+    }
+}
+
+async function getItemCosts(filters) {
+    try {
+        const result = await ipcRenderer.invoke('get-item-costs', filters);
+        // Transform the keys to lowercase while preserving the values
+        const transformedResult = result.map(item => {
+            return Object.keys(item).reduce((acc, key) => {
+                acc[key.toLowerCase()] = item[key];
+                return acc;
+            }, {});
+        });
+        return transformedResult;
+    } catch (error) {
+        console.error('Failed to get item costs:', error);
         throw error;
     }
 }

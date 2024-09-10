@@ -2,7 +2,7 @@ async function processCSV(sectionData, currentStock) {
     try {
         let stockUpdate = {
             "locationId": sectionData.locationId,
-            "binId": sectionData.bin,
+            "binId": sectionData.binId,
             "reason": "Stokly Sync",
             "items": []
         };
@@ -54,6 +54,7 @@ async function processCSV(sectionData, currentStock) {
                             }
 
                             delete currentStock[itemid]
+
                         }
 
                         resolve();
@@ -96,46 +97,81 @@ async function processCSV(sectionData, currentStock) {
 
 async function updateAttributes(sectionData, row, itemFromdb) {
 
-    let update = {
+    let attibuteUpdate = {
         "attributes": [],
         "appendAttributes": true,
-        itemId: itemFromdb.itemid
+        itemId: itemFromdb.itemid,
+        updated: false
     }
 
-    let productUpdated = false
 
     for (const attribute in sectionData.attDict){
 
-        let rowValue = row[sectionData.attDict[attribute].header]
-        if (!isNaN(sectionData.attDict[attribute].mod) && !isNaN(rowValue)){
-            rowValue *= sectionData.attDict[attribute].mod
-        }
+        if(attribute.toLowerCase() == '-cost-'){
+            productUpdated = await updateCost(attibuteUpdate, sectionData, row, itemFromdb, attribute)
+        } else (
+            productAttribute = updateAttribute(attibuteUpdate, sectionData, row, itemFromdb, attribute)
+        )
 
-        if(itemFromdb[attribute.toLowerCase()] == rowValue){continue}
-        if(sectionData.attributes[attribute]){
-            if (sectionData?.attributes?.[attribute]?.type == 7){
-                update.attributes.push({
-                    "itemAttributeId": sectionData.attributes[attribute].itemAttributeId,
-                    "value": {
-                        "amount": rowValue
-                    }
-                })
-            } else {
-                update.attributes.push({
-                    "itemAttributeId": sectionData.attributes[attribute].itemAttributeId,
-                    "value": rowValue
-                })
-            }
-        } else if (attribute.toLowerCase() == 'saleprice'){
-            update.salePrice = {
-                "amount": rowValue
-            }
-        } else {
-            update[attribute] = rowValue
-        }
-        productUpdated = true
     }
 
-    if (productUpdated){return requester('patch', `https://${enviroment}/v0/items/${itemFromdb.itemid}`, update)}
+    if (attibuteUpdate.updated){return requester('patch', `https://${enviroment}/v0/items/${itemFromdb.itemid}`, attibuteUpdate)}
 
+}
+
+async function updateCost(update, sectionData, row, itemFromdb, attribute){
+    let itemCostFromdb = await getItemCosts({
+        'itemid': [itemFromdb.itemid],
+        'supplier': [sectionData.supplier]
+    })
+    for(const UOM of itemCostFromdb){
+        console.log(UOM)
+        if (((UOM.cost/UOM.quantityInUnit) || undefined) != row[sectionData.attDict[attribute].header]){
+            if (update.unitsOfMeasure == undefined){update.unitsOfMeasure = []}
+            update.unitsOfMeasure.push({
+                unitOfMeasureId: UOM.UOMID,
+                "supplierId": UOM.supplierId,
+                "supplierName": UOM.supplier,
+                "supplierSku": UOM.supplierSku,
+                "cost": {
+                    "amount": row[sectionData.attDict[attribute].header] * UOM.quantityInUnit,
+                },
+                "quantityInUnit": UOM.quantityInUnit
+            })
+        }
+
+        
+    }
+}
+
+function updateAttribute(update, sectionData, row, itemFromdb, attribute){
+
+    let rowValue = row[sectionData.attDict[attribute].header]
+    if (!isNaN(sectionData.attDict[attribute].mod) && !isNaN(rowValue)){
+        rowValue *= sectionData.attDict[attribute].mod
+    }
+
+    if(itemFromdb[attribute.toLowerCase()] == rowValue){return}
+    if(sectionData.attributes[attribute]){
+        if (sectionData?.attributes?.[attribute]?.type == 7){
+            update.attributes.push({
+                "itemAttributeId": sectionData.attributes[attribute].itemAttributeId,
+                "value": {
+                    "amount": rowValue
+                }
+            })
+        } else {
+            update.attributes.push({
+                "itemAttributeId": sectionData.attributes[attribute].itemAttributeId,
+                "value": rowValue
+            })
+        }
+    } else if (attribute.toLowerCase() == 'saleprice'){
+        update.salePrice = {
+            "amount": rowValue
+        }
+    } else {
+        update[attribute] = rowValue
+    }
+    update.updated = true
 }
