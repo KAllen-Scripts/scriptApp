@@ -233,18 +233,18 @@ function createSection() {
     buttonContainer.classList.add('button-container');
     buttonContainer.appendChild(activateButton);
 
-    const newButton = document.createElement('button');
-    newButton.textContent = 'Headers';
-    newButton.classList.add('inputModeButton');
-    newButton.type = 'button';
-    newButton.onclick = function(event) {
+    const columnToggle = document.createElement('button');
+    columnToggle.textContent = 'Headers';
+    columnToggle.classList.add('inputModeButton');
+    columnToggle.type = 'button';
+    columnToggle.onclick = function(event) {
         const button = event.target;
         sectionStatus[sectionWrapper.dataset.id].headers = !sectionStatus[sectionWrapper.dataset.id].headers
         button.textContent = sectionStatus[sectionWrapper.dataset.id].headers ? 'Headers' : 'Columns'
     };
 
     // Add the new button to the button container
-    buttonContainer.appendChild(newButton);
+    buttonContainer.appendChild(columnToggle);
 
     sectionWrapper.appendChild(buttonContainer);
 

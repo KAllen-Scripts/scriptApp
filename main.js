@@ -70,12 +70,14 @@ function createWindow() {
         // Create table in itemCostsDB if it doesn't exist
         itemCostsDB.exec(`CREATE TABLE IF NOT EXISTS itemCosts (
             itemId TEXT COLLATE NOCASE,
+            itemIdOnly TEXT COLLATE NOCASE,  -- New column to store just itemId
             supplier TEXT COLLATE NOCASE,
             supplierSku TEXT COLLATE NOCASE,
             uomID TEXT COLLATE NOCASE,
             supplierId TEXT COLLATE NOCASE,
+            quantityInUnit REAL,
             cost REAL,
-            PRIMARY KEY (itemId, supplier)
+            PRIMARY KEY (itemId, supplier, quantityInUnit)
         )`);
 
         ipcMain.handle('get-items', async (event, property, values) => {
@@ -120,31 +122,57 @@ function createWindow() {
             }
         });
 
-        ipcMain.handle('upsert-item-cost', async (event, itemId, supplier, supplierSku, cost, uomID, supplierId) => {
-            try {
-                // Ensure the column exists in itemCostsDB
-                itemCostsDB.exec(`ALTER TABLE itemCosts ADD COLUMN supplierId TEXT COLLATE NOCASE`);
-            } catch (error) {
-                // Ignore error if column already exists
+        ipcMain.handle('upsert-item-cost', async (event, itemId, costEntries) => {
+            if (!Array.isArray(costEntries)) {
+                throw new Error('Expected an array of cost entries');
             }
-
-            try {
-                const query = `INSERT INTO itemCosts (itemId, supplier, supplierSku, cost, uomID, supplierId)
-                               VALUES (?, ?, ?, ?, ?, ?)
-                               ON CONFLICT(itemId, supplier) DO UPDATE SET 
-                               supplierSku = excluded.supplierSku,
-                               cost = excluded.cost,
-                               uomID = excluded.uomID,
-                               supplierId = excluded.supplierId`;
-                const stmt = itemCostsDB.prepare(query);
-                const info = stmt.run(itemId.toLowerCase(), supplier.toLowerCase(), supplierSku, cost, uomID, supplierId);
         
-                return info.changes > 0;
-            } catch (error) {
-                console.error('Error upserting item cost:', error);
-                throw error;
-            }
+            const deleteQuery = `DELETE FROM itemCosts WHERE LOWER(itemId) = ?`;
+        
+            // try {
+                // Remove all existing entries for the provided itemId
+                const deleteStmt = itemCostsDB.prepare(deleteQuery);
+                deleteStmt.run(itemId.toLowerCase());
+        
+                // Prepare the insert statement
+                const insertQuery = `INSERT INTO itemCosts (itemId, itemIdOnly, supplier, supplierSku, cost, uomID, supplierId, quantityInUnit)
+                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                     ON CONFLICT(itemId, supplier, quantityInUnit) DO UPDATE SET 
+                                     itemIdOnly = excluded.itemIdOnly, 
+                                     supplierSku = excluded.supplierSku, 
+                                     cost = excluded.cost, 
+                                     uomID = excluded.uomID, 
+                                     supplierId = excluded.supplierId, 
+                                     quantityInUnit = excluded.quantityInUnit`;
+        
+                const insertStmt = itemCostsDB.prepare(insertQuery);
+        
+                // Insert each entry from the array into the database
+                for (const entry of costEntries) {
+                    const { supplier, supplierSku, cost, uomID, supplierId, quantityInUnit } = entry;
+        
+                    // Run the insert statement
+                    insertStmt.run(
+                        itemId.toLowerCase(),
+                        itemId.toLowerCase(), // itemIdOnly
+                        supplier.toLowerCase(),
+                        supplierSku,
+                        cost,
+                        uomID,
+                        supplierId,
+                        quantityInUnit
+                    );
+                }
+        
+                return true;
+            // } catch (error) {
+            //     console.error('Error upserting item costs:', error);
+            //     throw error;
+            // }
         });
+        
+        
+        
 
         ipcMain.handle('get-item-costs', async (event, filters) => {
             if (typeof filters !== 'object' || Object.keys(filters).length === 0) {

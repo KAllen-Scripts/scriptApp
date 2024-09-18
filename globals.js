@@ -62,14 +62,16 @@ async function upsertItemProperty(itemId, propertyName, propertyValue) {
     }
 }
 
-async function upsertItemCost(itemId, supplier, supplierSku, cost, uomID, supplierId) {
-    try {
-        await ipcRenderer.invoke('upsert-item-cost', itemId, supplier, supplierSku, cost, uomID, supplierId);
-    } catch (error) {
-        console.error('Error upserting item property:', error);
-        throw error;
-    }
+async function upsertItemCost(itemId, costEntries) {
+    console.log(costEntries)
+    // try {
+        await ipcRenderer.invoke('upsert-item-cost', itemId, costEntries);
+    // } catch (error) {
+    //     console.error('Error upserting item costs:', error);
+    //     throw error;
+    // }
 }
+
 
 async function getItemCosts(filters) {
     try {

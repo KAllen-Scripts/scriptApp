@@ -1,7 +1,7 @@
 let itemsBeingUpdated = false;
 
 async function startSyncForSection(section) {
-    try {
+    // try {
         // Initialize an object to store input values
         const sectionData = {
             stockDict: {},
@@ -72,26 +72,28 @@ async function startSyncForSection(section) {
 
         // Process the collected data
         await processData(sectionData);
-    } catch (error) {
-        console.error('Error in startSyncForSection:', error);
-        throw error; // Ensure error is propagated
-    }
+    // } catch (error) {
+    //     console.error('Error in startSyncForSection:', error);
+    //     throw error; // Ensure error is propagated
+    // }
 }
 
 async function processData(sectionData) {
-    try {
+    // try {
         let promiseArr = [];
         let currentStock = {};
 
-        promiseArr.push(requester('get', `https://${enviroment}/v0/locations?filter=[status]=={0}%26%26[name]=={${sectionData.location}}`).then(r => {
-            sectionData['locationId'] = r.data[0].locationId;
-            promiseArr.push(requester('get', `https://${enviroment}/v0/locations/${sectionData.locationId}/bins?filter=[name]=={${sectionData.bin}}`).then(res => {
-                sectionData.binId = res.data[0].binId;
-                promiseArr.push(loopThrough(`https://${enviroment}/v1/inventory-records`, 'size=1000&sortDirection=ASC&sortField=itemId', `[locationId]=={${sectionData['locationId']}}%26%26([onHand]!={0}||[quarantined]!={0})%26%26[binId]=={${res.data[0].binId}}`, (record) => {
-                    currentStock[record.itemId] = record.onHand;
+        if(sectionData.stockHeader.trim() != ''){
+            promiseArr.push(requester('get', `https://${enviroment}/v0/locations?filter=[status]=={0}%26%26[name]=={${sectionData.location}}`).then(r => {
+                sectionData['locationId'] = r.data[0].locationId;
+                promiseArr.push(requester('get', `https://${enviroment}/v0/locations/${sectionData.locationId}/bins?filter=[name]=={${sectionData.bin}}`).then(res => {
+                    sectionData.binId = res.data[0].binId;
+                    promiseArr.push(loopThrough(`https://${enviroment}/v1/inventory-records`, 'size=1000&sortDirection=ASC&sortField=itemId', `[locationId]=={${sectionData['locationId']}}%26%26([onHand]!={0}||[quarantined]!={0})%26%26[binId]=={${res.data[0].binId}}`, (record) => {
+                        currentStock[record.itemId] = record.onHand;
+                    }));
                 }));
             }));
-        }));
+        }
 
         sectionData.attributes = {}
         promiseArr.push(loopThrough(`https://${enviroment}/v0/item-attributes`, 'size=1000&sortDirection=ASC&sortField=name', `[status]!={1}%26%26[name]=*{${[...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier].join(',')}}`, (attribute) => {
@@ -122,21 +124,21 @@ async function processData(sectionData) {
 
         await Promise.all(promiseArr);
         await processCSV(sectionData, currentStock);
-    } catch (error) {
-        console.error('Error in processData:', error);
-        throw error; // Ensure error is propagated
-    }
+    // } catch (error) {
+    //     console.error('Error in processData:', error);
+    //     throw error; // Ensure error is propagated
+    // }
 }
 
 async function updateItems(sectionData) {
-    try {
+    // try {
         let itemsToUpdate = []
         itemsBeingUpdated = true;
         let lastUpdate = await loadData('lastUpdate');
         let updateTimeStamp = new Date().toISOString();
 
         await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
-            try {
+            // try {
                 itemsToUpdate.push(item.itemId)
                 const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
                 for(const att of [...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier]){
@@ -145,10 +147,10 @@ async function updateItems(sectionData) {
                         await upsertItemProperty(lowerCaseKeysObj.itemid, lowerCaseAtt, lowerCaseKeysObj[lowerCaseAtt]);
                     }
                 }
-            } catch (error) {
-                console.error('Error upserting item:', error);
-                throw error;
-            }
+            // } catch (error) {
+            //     console.error('Error upserting item:', error);
+            //     throw error;
+            // }
         })
 
         if (Object.keys(sectionData.attributes).length) {
@@ -164,25 +166,34 @@ async function updateItems(sectionData) {
 
 
 
+        let itemsToUpdateCosts = {}
         for (let i = 0; i < itemsToUpdate.length; i += 200) {
             const batch = itemsToUpdate.slice(i, i + 200);
             
             await loopThrough(`https://${enviroment}/v0/units-of-measure`, 'size=1000&sortDirection=ASC&sortField=supplierSku', `[itemId]=*{${batch.join(',')}}`, async (UOM) => {
-                try {
-                    await upsertItemCost(UOM.itemId, UOM.supplierName, UOM.supplierSku, UOM.cost/UOM.quantityInUnit, UOM.unitOfMeasureId, UOM.supplierId)
-                } catch (error) {
-                    console.error('Error upserting cost:', error);
-                    throw error;
-                }
+                if(itemsToUpdateCosts[UOM.itemId] == undefined){itemsToUpdateCosts[UOM.itemId] = []}
+                itemsToUpdateCosts[UOM.itemId].push({
+                    itemId:UOM.itemId,
+                    supplier:UOM.supplierName,
+                    supplierSku:UOM.supplierSku,
+                    cost:UOM.cost,
+                    unitOfMeasureId:UOM.unitOfMeasureId,
+                    supplierId:UOM.supplierId,
+                    quantityInUnit:UOM.quantityInUnit
+                })
             });
+        }
+
+        for (const i in itemsToUpdateCosts){
+            await upsertItemCost(i, itemsToUpdateCosts[i])
         }
         
 
         await saveData({ lastUpdate: updateTimeStamp });
         itemsBeingUpdated = false;
-    } catch (error) {
-        console.error('Error in updateItems:', error);
-        itemsBeingUpdated = false;
-        throw error;
-    }
+    // } catch (error) {
+    //     console.error('Error in updateItems:', error);
+    //     itemsBeingUpdated = false;
+    //     throw error;
+    // }
 }
