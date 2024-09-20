@@ -1,13 +1,18 @@
 let itemsBeingUpdated = false;
 
 async function startSyncForSection(section) {
-    // try {
+    try {
         // Initialize an object to store input values
         const sectionData = {
             stockDict: {},
             attDict: {},
             sectionId: section.dataset.id
         };
+
+        const delimiterInput = section.querySelector('.delimiter-input');
+        if (delimiterInput) {
+            sectionData.delimiter = delimiterInput.value;
+        }
 
         // Get the URL and file input elements
         const urlInput = section.querySelector('.url-input');
@@ -72,14 +77,16 @@ async function startSyncForSection(section) {
 
         // Process the collected data
         await processData(sectionData);
-    // } catch (error) {
-    //     console.error('Error in startSyncForSection:', error);
-    //     throw error; // Ensure error is propagated
-    // }
+        await makeCSVs(sectionData)
+    } catch (error) {
+        ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id);
+        console.error('Error in startSyncForSection:', error);
+    }
 }
 
 async function processData(sectionData) {
-    // try {
+    
+    try {
         let promiseArr = [];
         let currentStock = {};
 
@@ -115,23 +122,28 @@ async function processData(sectionData) {
             sectionData.csvData = fs.readFileSync(sectionData.filepath, 'utf8');
         }
 
+        promiseArr.push(requester('get', `https://${enviroment}/v1/suppliers?filter=[status]!={1}%26%26[name]=={${sectionData.supplier}}`).then(r=>{
+            sectionData.supplierId = r.data[0].supplierId
+        }))
+
         if (itemsBeingUpdated) {
             while (itemsBeingUpdated) {
                 await sleep(500);
             }
         }
+
         promiseArr.push(updateItems(sectionData));
 
         await Promise.all(promiseArr);
         await processCSV(sectionData, currentStock);
-    // } catch (error) {
-    //     console.error('Error in processData:', error);
-    //     throw error; // Ensure error is propagated
-    // }
+    } catch (error) {
+        console.error('Error in processData:', error);
+        throw error; // Ensure error is propagated
+    }
 }
 
 async function updateItems(sectionData) {
-    // try {
+    try {
         let itemsToUpdate = []
         itemsBeingUpdated = true;
         let lastUpdate = await loadData('lastUpdate');
@@ -184,6 +196,8 @@ async function updateItems(sectionData) {
             });
         }
 
+        await removedItemCosts(itemsToUpdateCosts, sectionData)
+
         for (const i in itemsToUpdateCosts){
             await upsertItemCost(i, itemsToUpdateCosts[i])
         }
@@ -191,9 +205,9 @@ async function updateItems(sectionData) {
 
         await saveData({ lastUpdate: updateTimeStamp });
         itemsBeingUpdated = false;
-    // } catch (error) {
-    //     console.error('Error in updateItems:', error);
-    //     itemsBeingUpdated = false;
-    //     throw error;
-    // }
+    } catch (error) {
+        console.error('Error in updateItems:', error);
+        itemsBeingUpdated = false;
+        throw error;
+    }
 }

@@ -5,10 +5,10 @@ const fs = require('fs');
 const Papa = require('papaparse');
 const schedule = require('node-schedule');
 const crypto = require('crypto');
-const enviroment = 'api.dev.stok.ly';
-const accountKey = 'webapptest'
-const clientId = '10tmkp81unudkn4a9gpqsg338p'
-const secretKey = '7oc7srhe5950ave1fe9mf5tmctj3gaevftd54kqjtlvh464tue3'
+const enviroment = 'api.stok.ly';
+const accountKey = 'productiontest'
+const clientId = '1tr380jeegvge3vfad1nj31qcm'
+const secretKey = '2pfakbo1n7rks8u8rbpp0ccudktrs5ehsthr3gh7gnf9jlg5f46'
 
 const tokensOverMinute = 600;
 const maxTokensToHold = 3;
@@ -63,7 +63,6 @@ async function upsertItemProperty(itemId, propertyName, propertyValue) {
 }
 
 async function upsertItemCost(itemId, costEntries) {
-    console.log(costEntries)
     // try {
         await ipcRenderer.invoke('upsert-item-cost', itemId, costEntries);
     // } catch (error) {

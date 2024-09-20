@@ -4,6 +4,10 @@ const Store = require('electron-store');
 const Database = require('better-sqlite3');
 const { exec } = require('child_process');
 const os = require('os');
+const axios = require('axios')
+const fs = require('fs')
+const Papa = require('papaparse');
+let CSVs = {}
 
 const store = new Store();
 
@@ -48,6 +52,33 @@ function createWindow() {
         return true; // Allow window to close if app is quitting
     });
 
+    ipcMain.on('data-sent', (event, csvName, data, sectionId) => {
+        if(CSVs[sectionId] == undefined){CSVs[sectionId] = {}}
+        if(CSVs[sectionId][csvName] == undefined){CSVs[sectionId][csvName] = []}
+        CSVs[sectionId][csvName].push(...data)
+        event.sender.send('data-received');
+    });
+
+    ipcMain.on('write-CSVs', (event, logPath, email, sectionId, supplier) => {
+        let title = `Stock Sync Summary for Supplier ${supplier}`
+        let body = ''
+        const currentDate = new Date().toISOString().replace(/[:]/g, '-').split('.')[0];
+        let fullLogPath = `${logPath}/${supplier}/${currentDate}`
+        fs.mkdirSync(fullLogPath, { recursive: true });
+        for (const csv in CSVs[sectionId]){
+            body += `-${csv}: ${CSVs[sectionId][csv].length}\n`
+            saveObjectArrayToCSV(`${fullLogPath}/${csv}`, CSVs[sectionId][csv])
+        }
+        if(body != ''){
+            sendEmailSMTP2GO(email, title, body)
+        }
+        CSVs[sectionId] = {}
+    });
+
+    ipcMain.on('Section-Failed', (event, logPath, email, sectionId, supplier) => {
+        sendEmailSMTP2GO(email, `Sync Failed for supplier ${supplier}`, `Sync has failed for supplier ${supplier}: Section ID - ${sectionId}`)
+    });
+
     ipcMain.on('save-data', (event, data) => {
         store.set(data);
         event.sender.send('save-dataResponse');
@@ -56,6 +87,7 @@ function createWindow() {
     ipcMain.on('load-data', (event, prop) => {
         event.reply('load-dataResponse', store.get(prop));
     });
+
 
     try {
         // Initialize better-sqlite3 databases
@@ -70,7 +102,7 @@ function createWindow() {
         // Create table in itemCostsDB if it doesn't exist
         itemCostsDB.exec(`CREATE TABLE IF NOT EXISTS itemCosts (
             itemId TEXT COLLATE NOCASE,
-            itemIdOnly TEXT COLLATE NOCASE,  -- New column to store just itemId
+            itemIdOnly TEXT COLLATE NOCASE,
             supplier TEXT COLLATE NOCASE,
             supplierSku TEXT COLLATE NOCASE,
             uomID TEXT COLLATE NOCASE,
@@ -205,6 +237,51 @@ function createWindow() {
     } catch (error) {
         console.error('Error setting up databases:', error);
     }
+
+    ipcMain.on('save-page', (event, pageContent) => {
+        store.set('savedPage', pageContent); // Save the content under a variable
+        console.log('Page content saved');
+    });
+    
+    // Function to load the saved page
+    ipcMain.handle('load-page', (event) => {
+        return store.get('savedPage'); // Return the saved page content
+    });
+
+}
+
+function sendEmailSMTP2GO(to, subject, text) {
+    axios({
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Smtp2go-Api-Key': 'api-2FB182F09AB6447AAE59BF34A301D50D',
+            'accept': 'application/json'
+        },
+        url: 'https://api.smtp2go.com/v3/email/send',
+        data: {
+            "sender": "k.allen@stok.ly",
+            "to": [
+              to
+            ],
+            "subject": subject,
+            "text_body": text,
+          }
+    })
+}
+
+function saveObjectArrayToCSV(filePath, objectArray) {
+    // Convert the object array to CSV
+    const csv = Papa.unparse(objectArray);
+
+    // Write the CSV to a file
+    fs.writeFile(filePath, csv, 'utf8', (err) => {
+        if (err) {
+            console.error('Error writing CSV file:', err);
+        } else {
+            console.log('CSV file successfully saved at', filePath);
+        }
+    });
 }
 
 function createTray() {

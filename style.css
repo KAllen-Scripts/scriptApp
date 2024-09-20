@@ -265,3 +265,39 @@ body {
 .global-settings-container .form-section {
     margin-bottom: 10px;
 }
+
+.delimiter-input {
+    width: 1em;
+    margin-left: 5px;
+    padding: 2px;
+}
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+}
+
+.form-container {
+    position: relative; /* Ensure positioning context for the button */
+}
+
+.save-button {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    width: 30px; /* Size of the button */
+    height: 30px; /* Size of the button */
+    background-image: url('./save-icon.png'); /* Path to your save icon */
+    background-size: contain;
+    background-repeat: no-repeat;
+    border: none;
+    cursor: pointer;
+    outline: none;
+    border-radius: 5px; /* Optional for rounded corners */
+    background-color: transparent; /* Transparent background */
+    transition: background-color 0.3s;
+}
+
+.save-button:hover {
+    background-color: rgba(0, 0, 0, 0.1); /* Change color on hover */
+}

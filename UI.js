@@ -243,8 +243,24 @@ function createSection() {
         button.textContent = sectionStatus[sectionWrapper.dataset.id].headers ? 'Headers' : 'Columns'
     };
 
-    // Add the new button to the button container
-    buttonContainer.appendChild(columnToggle);
+    // Create a small input field for the delimiter
+    const delimiterInput = document.createElement('input');
+    delimiterInput.type = 'text';
+    delimiterInput.className = 'delimiter-input';
+    delimiterInput.value = ',';
+    delimiterInput.title = 'Delimiter';
+
+    // Create a container for the toggle button and delimiter input
+    const toggleContainer = document.createElement('div');
+    toggleContainer.className = 'toggle-container';
+    toggleContainer.appendChild(columnToggle);
+    toggleContainer.appendChild(delimiterInput);
+
+    // Add the toggle container to the button container
+    buttonContainer.appendChild(toggleContainer);
+
+    // Add the toggle container to the button container
+    buttonContainer.appendChild(toggleContainer);
 
     sectionWrapper.appendChild(buttonContainer);
 

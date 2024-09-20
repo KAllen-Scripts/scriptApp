@@ -13,6 +13,7 @@ async function processCSV(sectionData, currentStock) {
             Papa.parse(sectionData.csvData, {
                 header: sectionStatus[sectionData.sectionId].headers,
                 skipEmptyLines: true,
+                delimiter: sectionData.delimiter,
                 transformHeader: (header) => header.toLowerCase(),
                 complete: async (results) => {
                     // try {
@@ -36,13 +37,20 @@ async function processCSV(sectionData, currentStock) {
                                 let quantity = stockLevelValue - (currentStock?.[itemid] || 0);
                                 if (quantity != 0) {
                                     stockUpdate.items.push({
+                                        ...itemFromdb,
                                         itemId: itemid,
                                         quantity
                                     });
                                 }
     
                                 if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
-                                    await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
+                                    try{
+                                        await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
+                                        itemInventoryUpdated(stockUpdate.items)
+                                    } catch {
+                                        itemInventoryUpdatedFailed(stockUpdate.items)
+                                    }
+
                                     stockUpdate.items = [];
                                 }
     
@@ -82,13 +90,24 @@ async function processCSV(sectionData, currentStock) {
                     });
                 }
                 if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
-                    await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
+                    try{
+                        await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
+                        itemInventoryUpdated(stockUpdate.items)
+                    } catch {
+                        itemInventoryUpdatedFailed(stockUpdate.items)
+
+                    }
                     stockUpdate.items = [];
                 }
             }
     
             if (stockUpdate.items.length > 0 && sectionStatus[sectionData.sectionId].active) {
-                await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
+                try{
+                    await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
+                    itemInventoryUpdated(stockUpdate.items)
+                } catch {
+                    itemInventoryUpdatedFailed(stockUpdate.items)
+                }
             }
         }
 
@@ -101,122 +120,114 @@ async function processCSV(sectionData, currentStock) {
 
 async function updateAttributes(sectionData, row, itemFromdb) {
 
-    let attibuteUpdate = {
-        "attributes": [],
-        "appendAttributes": true,
-        itemId: itemFromdb.itemid,
-        updated: false
+    try{
+        let attibuteUpdate = {
+            "attributes": [],
+            "appendAttributes": true,
+            itemId: itemFromdb.itemid,
+            updated: false
+        }
+    
+    
+        for (const attribute in sectionData.attDict){
+    
+            if(attribute.toLowerCase() == '-cost-'){
+                productUpdated = await updateCost(attibuteUpdate, sectionData, row, itemFromdb, attribute)
+            } else (
+                productAttribute = updateAttribute(attibuteUpdate, sectionData, row, itemFromdb, attribute)
+            )
+    
+        }
+    
+        if (attibuteUpdate.updated){
+            attributeUpdated(itemFromdb)
+            return requester('patch', `https://${enviroment}/v0/items/${itemFromdb.itemid}`, attibuteUpdate)
+        }
+    }catch{
+        failedToUpdateAttribute(itemFromdb)
     }
-
-
-    for (const attribute in sectionData.attDict){
-
-        if(attribute.toLowerCase() == '-cost-'){
-            productUpdated = await updateCost(attibuteUpdate, sectionData, row, itemFromdb, attribute)
-        } else (
-            productAttribute = updateAttribute(attibuteUpdate, sectionData, row, itemFromdb, attribute)
-        )
-
-    }
-
-    if (attibuteUpdate.updated){return requester('patch', `https://${enviroment}/v0/items/${itemFromdb.itemid}`, attibuteUpdate)}
 
 }
 
-async function updateCost(update, sectionData, row, itemFromdb, attribute){
+async function updateCost(update, sectionData, row, itemFromdb, attribute) {
+    // Initialize unitsOfMeasure if it's undefined
+    if (!update.unitsOfMeasure) {
+        update.unitsOfMeasure = [];
+    }
 
-    if (update.unitsOfMeasure == undefined){update.unitsOfMeasure = []}
+    // Helper function to parse costPrice into price and quantityInUnit
+    function parseCostPrice(costPrice) {
+        const parts = costPrice.split(':');
+        const quantityInUnit = parts[1] === undefined ? 1 : parts[0];
+        const price = parts[1] === undefined ? parts[0] : parts[1] * quantityInUnit;
+        return { price, quantityInUnit };
+    }
 
-    let costPrices = row[sectionData.attDict[attribute].header.toLowerCase()].split(';')
+    // Retrieve costPrices from the given row data
+    let costPrices = row[sectionData.attDict[attribute].header.toLowerCase()].split(';');
 
-    let itemCostsFromdb = await getItemCosts({
-        'itemidonly': [itemFromdb.itemid],
-        'supplier': [sectionData.supplier]
-    })
+    // Fetch item costs from the database
+    const itemCostsFromdb = await getItemCosts({
+        itemidonly: [itemFromdb.itemid],
+        supplier: [sectionData.supplier]
+    });
 
-    console.log(itemCostsFromdb)
+    // Loop through each item cost from the database
+    for (const itemCost of itemCostsFromdb) {
+        let costAdded = false;
+        for (let i = 0; i < costPrices.length; i++) {
+            let { price, quantityInUnit } = parseCostPrice(costPrices[i]);
 
-    let uomAddedArr = []
-
-    for (const itemCost of itemCostsFromdb){
-        let costAdded = false
-        for (const costPrice of costPrices){
-            let price
-            let quantityInUnit
-            if (costPrice.split(':')[1] == undefined){
-                price = costPrice.split(':')[0]
-                quantityInUnit = 1
-            } else {
-                quantityInUnit = costPrice.split(':')[0]
-                price = costPrice.split(':')[1] * quantityInUnit
-            }
-
-
-            if((itemCost.quantityinunit == quantityInUnit) && !(price == itemCost.cost)){
+            // If the quantity and cost don't match, add the item and remove the cost price
+            if (itemCost.quantityinunit == quantityInUnit && price != itemCost.cost) {
                 update.unitsOfMeasure.push({
                     unitOfMeasureId: itemCost.uomid,
-                    "supplierId": itemCost.supplierid,
-                    "supplierName": itemCost.supplier,
-                    "supplierSku": itemCost.suppliersku,
-                    "cost": {
-                        "amount": price
-                    },
-                    "quantityInUnit": quantityInUnit
-                })
-                uomAddedArr.push(itemCost.uomid)
-                update.updated = true
-                costAdded = true
+                    supplierId: sectionData.supplierId,
+                    supplierName: itemCost.supplier,
+                    supplierSku: itemCost.suppliersku,
+                    cost: { amount: price },
+                    quantityInUnit: quantityInUnit
+                });
+                update.updated = true;
+                costAdded = true;
+
+                // Remove the matched costPrice and exit the inner loop
+                costPrices.splice(i, 1);
+                break;
             }
         }
 
-        if(!costAdded){
+        // If no match was found, push the current item cost from the DB
+        if (!costAdded) {
             update.unitsOfMeasure.push({
                 unitOfMeasureId: itemCost.uomid,
-                "supplierId": itemCost.supplierid,
-                "supplierName": itemCost.supplier,
-                "supplierSku": itemCost.suppliersku,
-                "cost": {
-                    "amount": itemCost.cost,
-                },
-                "quantityInUnit": itemCost.quantityinunit
-            })
-            console.log(itemCost)
+                supplierId: sectionData.supplierId,
+                supplierName: itemCost.supplier,
+                supplierSku: itemCost.suppliersku,
+                cost: { amount: itemCost.cost },
+                quantityInUnit: itemCost.quantityinunit
+            });
         }
     }
 
-    // for (const costPrice of costPrices){
-    //     let price
-    //     let quantityInUnit
-    //     if (costPrice.split(':')[1] == undefined){
-    //         price = costPrice.split(':')[0]
-    //         quantityInUnit = 1
-    //     } else {
-    //         price = costPrice.split(':')[1]
-    //         quantityInUnit = costPrice.split(':')[0]
-    //     }
+    console.log(costPrices)
 
-        
+    updateWithNewCosts(costPrices, itemFromdb.itemid, sectionData, row)
 
-    //     for (const itemCost of itemCostsFromdb){
-
-    //         if((itemCost.quantityinunit == quantityInUnit) && !(price == itemCost.cost)){
-    //             if (update.unitsOfMeasure == undefined){update.unitsOfMeasure = []}
-    //             update.unitsOfMeasure.push({
-    //                 unitOfMeasureId: itemCost.uomid,
-    //                 "supplierId": itemCost.supplierid,
-    //                 "supplierName": itemCost.supplier,
-    //                 "supplierSku": itemCost.suppliersku,
-    //                 "cost": {
-    //                     "amount": price,
-    //                 },
-    //                 "quantityInUnit": quantityInUnit
-    //             })
-    //             update.updated = true
-    //         }
-    //     }
-
-    // }
+    // Add remaining unmatched costPrices
+    for (const costPrice of costPrices) {
+        let { price, quantityInUnit } = parseCostPrice(costPrice);
+        update.unitsOfMeasure.push({
+            supplierId: sectionData.supplierId,
+            supplierName: sectionData.supplier,
+            supplierSku: row[sectionData.supplierIdentifier.toLowerCase()],
+            cost: { amount: price },
+            quantityInUnit: quantityInUnit
+        });
+        update.updated = true;
+    }
 }
+
 
 function updateAttribute(update, sectionData, row, itemFromdb, attribute){
 
