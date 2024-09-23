@@ -3,13 +3,12 @@ let tokenExpirationTime = null;
 
 
 function generateSignature(accountKey, clientId, secretKey) {
-    console.log(accountKey, clientId, secretKey)
     const hash = crypto.createHmac('sha256', secretKey).update(`${clientId}`).digest('hex');
     return hash;
 }
 
 async function getAccessToken() {
-    // try {
+    try {
         const signature = generateSignature(accountKey, clientId, secretKey);
 
         const response = await axios.post(`https://${enviroment}/v1/grant`, {
@@ -21,10 +20,10 @@ async function getAccessToken() {
         accessToken = response.data.data.authenticationResult.accessToken;
         const expiresIn = response.data.data.authenticationResult.expiresIn; 
         tokenExpirationTime = Date.now() + expiresIn * 1000;
-    // } catch (error) {
-    //     console.error("Error fetching access token:", error);
-    //     throw error;
-    // }
+    } catch (error) {
+        console.error("Error fetching access token:", error);
+        throw error;
+    }
 }
 
 async function ensureToken() {

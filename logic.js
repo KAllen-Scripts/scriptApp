@@ -150,7 +150,7 @@ async function updateItems(sectionData) {
         let updateTimeStamp = new Date().toISOString();
 
         await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
-            // try {
+            try {
                 itemsToUpdate.push(item.itemId)
                 const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
                 for(const att of [...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier]){
@@ -159,10 +159,10 @@ async function updateItems(sectionData) {
                         await upsertItemProperty(lowerCaseKeysObj.itemid, lowerCaseAtt, lowerCaseKeysObj[lowerCaseAtt]);
                     }
                 }
-            // } catch (error) {
-            //     console.error('Error upserting item:', error);
-            //     throw error;
-            // }
+            } catch (error) {
+                console.error('Error upserting item:', error);
+                throw error;
+            }
         })
 
         if (Object.keys(sectionData.attributes).length) {

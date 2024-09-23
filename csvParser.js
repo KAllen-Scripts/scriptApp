@@ -1,5 +1,5 @@
 async function processCSV(sectionData, currentStock) {
-    // try {
+    try {
         let stockUpdate = {
             "locationId": sectionData.locationId,
             "binId": sectionData.binId,
@@ -16,7 +16,7 @@ async function processCSV(sectionData, currentStock) {
                 delimiter: sectionData.delimiter,
                 transformHeader: (header) => header.toLowerCase(),
                 complete: async (results) => {
-                    // try {
+                    try {
                         for (const row of results.data) {
                             if(!sectionStatus[sectionData.sectionId].active){continue}
                             let itemFromdb = await getItems(sectionData.stoklyIdentifier, [row[sectionData.supplierIdentifier.toLowerCase()]]).then(r => { return r[0] });
@@ -68,14 +68,14 @@ async function processCSV(sectionData, currentStock) {
                         }
 
                         resolve();
-                    // } catch (error) {
-                    //     reject(error); // Ensure error is propagated
-                    // }
+                    } catch (error) {
+                        reject(error); // Ensure error is propagated
+                    }
                 },
-                // error: (error) => {
-                //     console.error('Error parsing CSV:', error);
-                //     reject(error); // Ensure error is propagated
-                // }
+                error: (error) => {
+                    console.error('Error parsing CSV:', error);
+                    reject(error); // Ensure error is propagated
+                }
             });
         });
 
@@ -112,10 +112,10 @@ async function processCSV(sectionData, currentStock) {
         }
 
         await Promise.all(attributeUpdateArr);
-    // } catch (error) {
-    //     console.error('Error in processCSV:', error);
-    //     throw error; // Ensure error is propagated
-    // }
+    } catch (error) {
+        console.error('Error in processCSV:', error);
+        throw error; // Ensure error is propagated
+    }
 }
 
 async function updateAttributes(sectionData, row, itemFromdb) {
@@ -209,8 +209,6 @@ async function updateCost(update, sectionData, row, itemFromdb, attribute) {
             });
         }
     }
-
-    console.log(costPrices)
 
     updateWithNewCosts(costPrices, itemFromdb.itemid, sectionData, row)
 

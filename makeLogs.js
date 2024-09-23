@@ -38,13 +38,11 @@ async function updateWithNewCosts(costPrices, itemId, sectionData, row){
 }
 
 async function asyncUpdateWithNewCosts(costPrices, itemId, sectionData, row){
-    console.log(costPrices)
     const itemCostsFromdb = await getItemCosts({
         itemidonly: [itemId]
     });
 
     for (const csvCost of costPrices){
-        console.log(csvCost)
         let costFound = false
         let { csvPrice, csvQuantityInUnit } = parseCostPrice(csvCost);
         for (const dbCost of itemCostsFromdb){

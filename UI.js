@@ -1,15 +1,15 @@
 // Function to create a new section
-function createSection() {
+function createSection(sectionData = {}) {
     const sectionsContainer = document.getElementById('sectionsContainer');
     const sectionWrapper = document.createElement('div');
     sectionWrapper.classList.add('section-wrapper');
-    sectionWrapper.dataset.id = Date.now(); // Unique ID based on timestamp
+    sectionWrapper.dataset.id = sectionData.id || Date.now().toString();
 
     sectionStatus[sectionWrapper.dataset.id] = {
         active: false,
         scheduledJobs: [],
-        inputMode: 'url',
-        headers: true
+        inputMode: sectionData.inputMode === 'Columns' ? 'columns' : 'headers',
+        headers: sectionData.inputMode !== 'Columns'
     };
 
     // Create editable label
@@ -18,7 +18,7 @@ function createSection() {
     
     const labelInput = document.createElement('input');
     labelInput.type = 'text';
-    labelInput.value = 'Section ' + (document.querySelectorAll('.section-wrapper').length + 1);
+    labelInput.value = sectionData.label || 'Section ' + (document.querySelectorAll('.section-wrapper').length + 1);
     labelInput.classList.add('section-label-input');
     
     labelDiv.appendChild(labelInput);
@@ -26,10 +26,9 @@ function createSection() {
     const removeSectionButton = document.createElement('button');
     removeSectionButton.textContent = 'Remove Section';
     removeSectionButton.classList.add('remove-section');
-    removeSectionButton.type = 'button'; // Ensure button type is button
+    removeSectionButton.type = 'button';
     removeSectionButton.addEventListener('click', function() {
         sectionsContainer.removeChild(sectionWrapper);
-        // Remove from tracking
         const sectionId = sectionWrapper.dataset.id;
         if (sectionStatus[sectionId] && sectionStatus[sectionId].scheduledJobs) {
             sectionStatus[sectionId].scheduledJobs.forEach(job => clearTimeout(job));
@@ -39,13 +38,30 @@ function createSection() {
 
     const urlDiv = document.createElement('div');
     urlDiv.classList.add('form-section');
+    
+    // Default to URL mode if no value is given or if URL is provided
+    const isUrlMode = !sectionData.hasOwnProperty('isUrlMode') || sectionData.url ? true : sectionData.isUrlMode;
+    
     urlDiv.innerHTML = `
-        <label for="url">
-            URL:
-            <button type="button" class="toggle-input-button">Switch to Upload</button>
-        </label>
-        <input type="text" class="url-input" placeholder="Enter URL">
-        <input type="file" class="file-input" accept=".csv" style="display:none;">
+      <label for="url">
+        URL:
+        <button type="button" class="toggle-input-button">
+          ${isUrlMode ? 'Switch to Upload' : 'Switch to URL'}
+        </button>
+      </label>
+      <input 
+        type="text" 
+        class="url-input" 
+        placeholder="Enter URL" 
+        value="${sectionData.url || ''}" 
+        style="display: ${isUrlMode ? 'block' : 'none'};"
+      >
+      <input 
+        type="file" 
+        class="file-input" 
+        accept=".csv" 
+        style="display: ${isUrlMode ? 'none' : 'block'};"
+      >
     `;
 
     const locationDiv = document.createElement('div');
@@ -53,14 +69,14 @@ function createSection() {
     locationDiv.innerHTML = `
         <label for="location">Location:</label>
         <div class="identifier-wrapper">
-            <input type="text" name="location" placeholder="Enter Location">
-            <input type="text" name="bin" placeholder="Enter Bin">
+            <input type="text" name="location" placeholder="Enter Location" value="${sectionData.location?.location || ''}">
+            <input type="text" name="bin" placeholder="Enter Bin" value="${sectionData.location?.bin || ''}">
         </div>
     `;
 
     const stockHeaderDiv = document.createElement('div');
     stockHeaderDiv.classList.add('form-section');
-    stockHeaderDiv.innerHTML = '<label for="stockHeader">Stock Level Header:</label><input type="text" name="stockHeader" placeholder="Enter Stock Level Header">';
+    stockHeaderDiv.innerHTML = `<label for="stockHeader">Stock Level Header:</label><input type="text" name="stockHeader" placeholder="Enter Stock Level Header" value="${sectionData.stockHeader || ''}">`;
 
     const attributeDiv = document.createElement('div');
     attributeDiv.classList.add('form-section');
@@ -69,17 +85,15 @@ function createSection() {
     const attributeDynamicInputsDiv = document.createElement('div');
     attributeDynamicInputsDiv.classList.add('dynamic-inputs');
 
-    // Function to add a price attribute group
-    function addAttributeGroup() {
+    function addAttributeGroup(name = '', header = '') {
         const inputGroup = document.createElement('div');
         inputGroup.classList.add('input-group');
         inputGroup.innerHTML = `
-            <input type="text" name="attributeName" placeholder="Enter Attribute">
-            <input type="text" name="attributeHeader" placeholder="Enter Atribute Header">
+            <input type="text" name="attributeName" placeholder="Enter Attribute" value="${name}">
+            <input type="text" name="attributeHeader" placeholder="Enter Attribute Header" value="${header}">
             <button class="remove-button" type="button">Remove</button>
         `;
 
-        // Attach event listener to the remove button within this input group
         inputGroup.querySelector('.remove-button').addEventListener('click', function() {
             attributeDynamicInputsDiv.removeChild(inputGroup);
         });
@@ -87,17 +101,18 @@ function createSection() {
         attributeDynamicInputsDiv.appendChild(inputGroup);
     }
 
-    // Initially add one price attribute group
-    addAttributeGroup();
+    if (sectionData.attributes && sectionData.attributes.length > 0) {
+        sectionData.attributes.forEach(attr => addAttributeGroup(attr.name, attr.header));
+    } else {
+        addAttributeGroup();
+    }
 
-    // Button to add new price attribute groups
     const addAttributeButton = document.createElement('button');
     addAttributeButton.textContent = 'Add Attribute';
-    addAttributeButton.classList.add('add-schedule-button'); // Match the class with the schedule button
+    addAttributeButton.classList.add('add-schedule-button');
     addAttributeButton.type = 'button';
-    addAttributeButton.addEventListener('click', addAttributeGroup);
+    addAttributeButton.addEventListener('click', () => addAttributeGroup());
 
-    // Append dynamic inputs and the button to price div
     attributeDiv.appendChild(attributeDynamicInputsDiv);
     attributeDiv.appendChild(addAttributeButton);
 
@@ -106,8 +121,8 @@ function createSection() {
     identifierDiv.innerHTML = `
         <label for="identifier">Identifiers:</label>
         <div class="identifier-wrapper">
-            <input type="text" name="stoklyIdentifier" placeholder="Enter Stokly Identifier">
-            <input type="text" name="supplierIdentifier" placeholder="Enter Supplier Identifier">
+            <input type="text" name="stoklyIdentifier" placeholder="Enter Stokly Identifier" value="${sectionData.identifiers?.stokly || ''}">
+            <input type="text" name="supplierIdentifier" placeholder="Enter Supplier Identifier" value="${sectionData.identifiers?.supplier || ''}">
         </div>
     `;
 
@@ -116,8 +131,8 @@ function createSection() {
     loginCredsDiv.innerHTML = `
         <label for="identifier">Authorisation:</label>
         <div class="identifier-wrapper">
-            <input type="text" name="userName" placeholder="Enter User Name">
-            <input type="password" name="password" placeholder="Enter Password">
+            <input type="text" name="userName" placeholder="Enter User Name" value="${sectionData.authorization?.userName || ''}">
+            <input type="password" name="password" placeholder="Enter Password" value="${sectionData.authorization?.password || ''}">
         </div>
     `;
 
@@ -129,7 +144,6 @@ function createSection() {
         <button type="button" class="add-schedule-button">Add Schedule</button>
     `;
 
-    // Container for stock level inputs with a header
     const stockLevelDiv = document.createElement('div');
     stockLevelDiv.classList.add('form-section');
     stockLevelDiv.innerHTML = `<label for="stockLevels">Stock Levels:</label>`;
@@ -137,17 +151,15 @@ function createSection() {
     const dynamicInputsDiv = document.createElement('div');
     dynamicInputsDiv.classList.add('dynamic-inputs');
 
-    // Function to add a stock level group
-    function addStockLevelGroup() {
+    function addStockLevelGroup(name = '', quantity = '') {
         const inputGroup = document.createElement('div');
         inputGroup.classList.add('input-group');
         inputGroup.innerHTML = `
-            <input type="text" name="stockLevelName" placeholder="Stock Level Name">
-            <input type="text" name="stockLevelQty" placeholder="Stock Level Qty">
+            <input type="text" name="stockLevelName" placeholder="Stock Level Name" value="${name}">
+            <input type="text" name="stockLevelQty" placeholder="Stock Level Qty" value="${quantity}">
             <button class="remove-button" type="button">Remove</button>
         `;
 
-        // Attach event listener to the remove button within this input group
         inputGroup.querySelector('.remove-button').addEventListener('click', function() {
             dynamicInputsDiv.removeChild(inputGroup);
         });
@@ -155,29 +167,29 @@ function createSection() {
         dynamicInputsDiv.appendChild(inputGroup);
     }
 
-    // Initially add one stock level group
-    addStockLevelGroup();
+    if (sectionData.stockLevels && sectionData.stockLevels.length > 0) {
+        sectionData.stockLevels.forEach(level => addStockLevelGroup(level.name, level.quantity));
+    } else {
+        addStockLevelGroup();
+    }
 
-    // Button to add new stock level groups
     const addStockLevelButton = document.createElement('button');
     addStockLevelButton.textContent = 'Add Stock Level';
-    addStockLevelButton.classList.add('add-schedule-button'); // Match the class with the schedule button
+    addStockLevelButton.classList.add('add-schedule-button');
     addStockLevelButton.type = 'button';
-    addStockLevelButton.addEventListener('click', addStockLevelGroup);
+    addStockLevelButton.addEventListener('click', () => addStockLevelGroup());
 
-    // Append dynamic inputs and the button to stock level div
     stockLevelDiv.appendChild(dynamicInputsDiv);
     stockLevelDiv.appendChild(addStockLevelButton);
 
     const activateButton = document.createElement('button');
     activateButton.textContent = 'Activate';
-    activateButton.classList.add('activate-button');
-    activateButton.type = 'button'; // Ensure button type is button
+    activateButton.classList.add('activate-button', 'inactive');
+    activateButton.type = 'button';
     activateButton.addEventListener('click', function() {
         const sectionId = sectionWrapper.dataset.id;
         const scheduleInputs = sectionWrapper.querySelectorAll('.schedule-input');
     
-        // Filter out schedule inputs that have no value set
         const validSchedules = Array.from(scheduleInputs).filter(input => {
             const day = input.querySelector('.schedule-day').value;
             const time = input.querySelector('.schedule-time').value;
@@ -185,26 +197,19 @@ function createSection() {
         });
     
         const isActive = sectionStatus[sectionId].active;
-
-        console.log(sectionStatus[sectionId])
-        console.log(sectionStatus[sectionId].scheduledJobs)
     
         if (isActive) {
-            // Deactivation logic (always allowed)
             sectionStatus[sectionId].active = false;
             activateButton.textContent = 'Activate';
             activateButton.classList.add('inactive');
             activateButton.classList.remove('active');
     
-            // Clear all scheduled jobs
             if (sectionStatus[sectionId].scheduledJobs) {
                 sectionStatus[sectionId].scheduledJobs.forEach(job => job.cancel());
             }
             sectionStatus[sectionId].scheduledJobs = [];
         } else {
-            // Activation logic (only if there are valid schedules)
             if (validSchedules.length === 0) {
-                // If no valid schedules, do nothing
                 return;
             }
             sectionStatus[sectionId].active = true;
@@ -216,7 +221,6 @@ function createSection() {
         }
     });
 
-    // Append elements to the section wrapper
     sectionWrapper.appendChild(labelDiv);
     sectionWrapper.appendChild(removeSectionButton);
     sectionWrapper.appendChild(urlDiv);
@@ -228,45 +232,37 @@ function createSection() {
     sectionWrapper.appendChild(schedulerDiv);
     sectionWrapper.appendChild(stockLevelDiv);
 
-    // Create a container for buttons
     const buttonContainer = document.createElement('div');
     buttonContainer.classList.add('button-container');
     buttonContainer.appendChild(activateButton);
 
     const columnToggle = document.createElement('button');
-    columnToggle.textContent = 'Headers';
+    columnToggle.textContent = sectionStatus[sectionWrapper.dataset.id].headers ? 'Headers' : 'Columns';
     columnToggle.classList.add('inputModeButton');
     columnToggle.type = 'button';
     columnToggle.onclick = function(event) {
         const button = event.target;
-        sectionStatus[sectionWrapper.dataset.id].headers = !sectionStatus[sectionWrapper.dataset.id].headers
-        button.textContent = sectionStatus[sectionWrapper.dataset.id].headers ? 'Headers' : 'Columns'
+        sectionStatus[sectionWrapper.dataset.id].headers = !sectionStatus[sectionWrapper.dataset.id].headers;
+        button.textContent = sectionStatus[sectionWrapper.dataset.id].headers ? 'Headers' : 'Columns';
     };
 
-    // Create a small input field for the delimiter
     const delimiterInput = document.createElement('input');
     delimiterInput.type = 'text';
     delimiterInput.className = 'delimiter-input';
-    delimiterInput.value = ',';
+    delimiterInput.value = sectionData.delimiter || ',';
     delimiterInput.title = 'Delimiter';
 
-    // Create a container for the toggle button and delimiter input
     const toggleContainer = document.createElement('div');
     toggleContainer.className = 'toggle-container';
     toggleContainer.appendChild(columnToggle);
     toggleContainer.appendChild(delimiterInput);
 
-    // Add the toggle container to the button container
-    buttonContainer.appendChild(toggleContainer);
-
-    // Add the toggle container to the button container
     buttonContainer.appendChild(toggleContainer);
 
     sectionWrapper.appendChild(buttonContainer);
 
     sectionsContainer.appendChild(sectionWrapper);
 
-    // Add event listeners to the newly created toggle input buttons
     sectionWrapper.querySelector('.toggle-input-button').addEventListener('click', function() {
         const urlDiv = this.closest('.form-section');
         const textInput = urlDiv.querySelector('.url-input');
@@ -280,27 +276,22 @@ function createSection() {
         } else {
             textInput.style.display = 'none';
             fileInput.style.display = 'block';
-            this.textContent = 'Switch to Text';
+            this.textContent = 'Switch to URL';
             sectionStatus[sectionWrapper.dataset.id].inputMode = 'upload';
         }
     });
 
-    // Function to add a new schedule input
-    function addScheduleInput() {
+    function addScheduleInput(day = '', time = '') {
         const scheduleInput = document.createElement('div');
         scheduleInput.classList.add('schedule-input');
         scheduleInput.innerHTML = `
             <select class="schedule-day">
-                <option value="Sunday">Sunday</option>
-                <option value="Monday">Monday</option>
-                <option value="Tuesday">Tuesday</option>
-                <option value="Wednesday">Wednesday</option>
-                <option value="Thursday">Thursday</option>
-                <option value="Friday">Friday</option>
-                <option value="Saturday">Saturday</option>
+                ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+                    .map(d => `<option value="${d}" ${d === day ? 'selected' : ''}>${d}</option>`)
+                    .join('')}
             </select>
             at 
-            <input type="time" class="schedule-time">
+            <input type="time" class="schedule-time" value="${time}">
             <button type="button" class="remove-schedule-button remove-button">Remove</button>
         `;
         
@@ -311,11 +302,13 @@ function createSection() {
         schedulerDiv.querySelector('.schedule-list').appendChild(scheduleInput);
     }
 
-    // Add event listener for the add schedule button
-    schedulerDiv.querySelector('.add-schedule-button').addEventListener('click', addScheduleInput);
+    schedulerDiv.querySelector('.add-schedule-button').addEventListener('click', () => addScheduleInput());
 
-    // Add one schedule input by default
-    addScheduleInput();
+    if (sectionData.schedule && sectionData.schedule.length > 0) {
+        sectionData.schedule.forEach(s => addScheduleInput(s.day, s.time));
+    } else {
+        addScheduleInput();
+    }
 }
 
 // Function to schedule jobs
@@ -360,7 +353,20 @@ function scheduleJobs(sectionId, scheduleInputs, sectionWrapper) {
     });
 }
 
-// Initialize by creating the first section
-createSection();
+document.addEventListener('DOMContentLoaded', async function() {
+    let form = await loadData('savedData').then(r=>{
+        if(r){
+            return JSON.parse(r)}
+        }
+    )
+    if (form){
+        document.getElementById('logFilePath').value = form.logFilePath || ''
+        document.getElementById('emailAddress').value = form.emailAddress || ''
+        for (const section of form.sections){
+            createSection(section)
+        }
+    }
+});
+
 
 document.getElementById('addSectionButton').addEventListener('click', createSection);

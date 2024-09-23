@@ -11,9 +11,9 @@ let CSVs = {}
 
 const store = new Store();
 
-if (process.env.NODE_ENV !== 'production') {
-    require('electron-reloader')(module);
-}
+// if (process.env.NODE_ENV !== 'production') {
+//     require('electron-reloader')(module);
+// }
 
 let mainWindow;
 let tray;
@@ -161,7 +161,7 @@ function createWindow() {
         
             const deleteQuery = `DELETE FROM itemCosts WHERE LOWER(itemId) = ?`;
         
-            // try {
+            try {
                 // Remove all existing entries for the provided itemId
                 const deleteStmt = itemCostsDB.prepare(deleteQuery);
                 deleteStmt.run(itemId.toLowerCase());
@@ -197,10 +197,10 @@ function createWindow() {
                 }
         
                 return true;
-            // } catch (error) {
-            //     console.error('Error upserting item costs:', error);
-            //     throw error;
-            // }
+            } catch (error) {
+                console.error('Error upserting item costs:', error);
+                throw error;
+            }
         });
         
         
@@ -240,7 +240,6 @@ function createWindow() {
 
     ipcMain.on('save-page', (event, pageContent) => {
         store.set('savedPage', pageContent); // Save the content under a variable
-        console.log('Page content saved');
     });
     
     // Function to load the saved page
