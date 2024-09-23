@@ -31,7 +31,7 @@
   "build": {
     "asar": true,
     "productName": "Stokly Sync Dev",
-    "icon": "C:/Users/kenny/Desktop/StockSync App/stokly icon.ico",
+    "icon": "./stokly icon.ico",
     "win": {
       "target": "nsis"
     },
