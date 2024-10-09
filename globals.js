@@ -4,11 +4,13 @@ const { ipcRenderer } = require('electron');
 const fs = require('fs');
 const Papa = require('papaparse');
 const schedule = require('node-schedule');
+const ftp = require('ftp');
+const { Writable } = require('stream');
 const crypto = require('crypto');
-const enviroment = 'api.dev.stok.ly';
-const accountKey = 'webapptest'
-const clientId = 'kssiuckpdfe32kmtb3vfianqj'
-const secretKey = '25gl2tnp93j8k9gqiv4p70h3qi8ea3rtj1ta4urlig1lf1jsshc'
+const enviroment = 'api.stok.ly';
+const accountKey = 'accessmodels'
+const clientId = '584gjbgku0qbt2e5selgshi32u'
+const secretKey = '1g51sacef5b0ktaj25hkaafh5dqvr4moepqbrpholl5gtc7eua1v'
 
 const tokensOverMinute = 600;
 const maxTokensToHold = 3;
@@ -37,7 +39,7 @@ function saveData(obj) {
 }
 
 async function getItems(property, values) {
-    try {
+    // try {
         const result = await ipcRenderer.invoke('get-items', property, values);
         // Transform the keys to lowercase while preserving the values
         const transformedResult = result.map(item => {
@@ -47,33 +49,33 @@ async function getItems(property, values) {
             }, {});
         });
         return transformedResult;
-    } catch (error) {
-        console.error('Failed to get items:', error);
-        throw error;
-    }
+    // } catch (error) {
+    //     console.error('Failed to get items:', error);
+    //     throw error;
+    // }
 }
 
 async function upsertItemProperty(itemId, propertyName, propertyValue) {
-    try {
+    // try {
         await ipcRenderer.invoke('upsert-item-property', itemId, propertyName, propertyValue);
-    } catch (error) {
-        console.error('Error upserting item property:', error);
-        throw error;
-    }
+    // } catch (error) {
+    //     console.error('Error upserting item property:', error);
+    //     throw error;
+    // }
 }
 
 async function upsertItemCost(itemId, costEntries) {
-    try {
+    // try {
         await ipcRenderer.invoke('upsert-item-cost', itemId, costEntries);
-    } catch (error) {
-        console.error('Error upserting item costs:', error);
-        throw error;
-    }
+    // } catch (error) {
+    //     console.error('Error upserting item costs:', error);
+    //     throw error;
+    // }
 }
 
 
 async function getItemCosts(filters) {
-    try {
+    // try {
         const result = await ipcRenderer.invoke('get-item-costs', filters);
         // Transform the keys to lowercase while preserving the values
         const transformedResult = result.map(item => {
@@ -83,10 +85,10 @@ async function getItemCosts(filters) {
             }, {});
         });
         return transformedResult;
-    } catch (error) {
-        console.error('Failed to get item costs:', error);
-        throw error;
-    }
+    // } catch (error) {
+    //     console.error('Failed to get item costs:', error);
+    //     throw error;
+    // }
 }
 
 
@@ -103,12 +105,12 @@ function saveFormData() {
     const sectionWrappers = document.querySelectorAll('.section-wrapper');
 
     sectionWrappers.forEach((section, index) => {
+        console.log(section.querySelector('.ftp-inputs'))
         const sectionData = {
             id: section.dataset.id,
             label: section.querySelector('.section-label-input').value,
             url: section.querySelector('.url-input').value,
             fileInput: section.querySelector('.file-input').files[0] ? section.querySelector('.file-input').files[0].name : '',
-            isUrlMode: section.querySelector('.url-input').style.display !== 'none',
             authorization: {
                 userName: section.querySelector('input[name="userName"]').value,
                 password: section.querySelector('input[name="password"]').value
@@ -126,8 +128,25 @@ function saveFormData() {
             schedule: [],
             stockLevels: [],
             inputMode: section.querySelector('.inputModeButton').textContent,
-            delimiter: section.querySelector('.delimiter-input').value
+            delimiter: section.querySelector('.delimiter-input').value,
+            ftp: {
+                address: section.querySelector('.ftp-address').value,
+                port: section.querySelector('.ftp-port').value,
+                filepath: section.querySelector('.ftp-filepath').value
+            }
         };
+
+        console.log(section.querySelector('.url-input').style.display)
+
+        if(section.querySelector('.url-input').style.display == 'block'){
+            sectionData.inputType = 'url'
+        }
+        if(section.querySelector('.file-input').style.display == 'block'){
+            sectionData.inputType = 'upload'
+        }
+        if(section.querySelector('.ftp-inputs').style.display == 'block'){
+            sectionData.inputType = 'ftp'
+        }
 
         // Collect attributes
         section.querySelectorAll('.form-section:has(label[for="price"]) .input-group').forEach(attr => {

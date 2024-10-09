@@ -11,9 +11,13 @@ let CSVs = {}
 
 const store = new Store();
 
-// if (process.env.NODE_ENV !== 'production') {
-//     require('electron-reloader')(module);
-// }
+if (process.env.NODE_ENV !== 'production') {
+    try {
+        require('electron-reloader')(module);
+    } catch (_) {
+        console.log('Failed to load electron-reloader.');
+    }
+}
 
 let mainWindow;
 let tray;
@@ -89,7 +93,7 @@ function createWindow() {
     });
 
 
-    try {
+    // try {
         // Initialize better-sqlite3 databases
         itemsAttributesDB = new Database(path.join(app.getPath('userData'), 'itemsAttributesDB.db'));
         itemCostsDB = new Database(path.join(app.getPath('userData'), 'itemCostsDB.db'));
@@ -120,33 +124,40 @@ function createWindow() {
             const placeholders = values.map(() => '?').join(', ');
             const query = `SELECT * FROM items WHERE LOWER("${property}") IN (${placeholders})`;
 
-            try {
+            // try {
                 const stmt = itemsAttributesDB.prepare(query);
                 // Pass the values as lowercase for comparison, but retain original case in database
                 return stmt.all(values.map(v => v.toLowerCase()));
-            } catch (error) {
-                console.error('Database error:', error);
-                throw error;
-            }
+            // } catch (error) {
+            //     console.error('Database error:', error);
+            //     throw error;
+            // }
         });
 
         ipcMain.handle('upsert-item-property', async (event, itemId, propertyName, propertyValue) => {
+            // Check if the column already exists
+            const columnExistsQuery = `
+                SELECT name 
+                FROM pragma_table_info('items') 
+                WHERE name = ?;
+            `;
+            
             try {
-                // Ensure the column exists in itemsAttributesDB
-                itemsAttributesDB.exec(`ALTER TABLE items ADD COLUMN "${propertyName}" TEXT COLLATE NOCASE`);
-            } catch (error) {
-                // Ignore error if column already exists
-            }
-
-            try {
+                const columnCheck = itemsAttributesDB.prepare(columnExistsQuery).get(propertyName);
+                
+                // If the column doesn't exist, add it
+                if (!columnCheck) {
+                    itemsAttributesDB.exec(`ALTER TABLE items ADD COLUMN "${propertyName}" TEXT COLLATE NOCASE`);
+                }
+                
+                // Proceed with the upsert operation
                 const query = `INSERT INTO items (itemId, "${propertyName}") 
                                VALUES (?, ?)
                                ON CONFLICT(itemId) DO UPDATE SET 
                                "${propertyName}" = excluded."${propertyName}"`;
                 const stmt = itemsAttributesDB.prepare(query);
-                // Store propertyValue without converting it to lowercase
                 const info = stmt.run(itemId.toLowerCase(), propertyValue ? propertyValue.toString() : null);
-
+        
                 return info.changes > 0;
             } catch (error) {
                 console.error('Error upserting item property:', error);
@@ -161,7 +172,7 @@ function createWindow() {
         
             const deleteQuery = `DELETE FROM itemCosts WHERE LOWER(itemId) = ?`;
         
-            try {
+            // try {
                 // Remove all existing entries for the provided itemId
                 const deleteStmt = itemCostsDB.prepare(deleteQuery);
                 deleteStmt.run(itemId.toLowerCase());
@@ -197,10 +208,10 @@ function createWindow() {
                 }
         
                 return true;
-            } catch (error) {
-                console.error('Error upserting item costs:', error);
-                throw error;
-            }
+            // } catch (error) {
+            //     console.error('Error upserting item costs:', error);
+            //     throw error;
+            // }
         });
         
         
@@ -234,9 +245,9 @@ function createWindow() {
             }
         });
         
-    } catch (error) {
-        console.error('Error setting up databases:', error);
-    }
+    // } catch (error) {
+    //     console.error('Error setting up databases:', error);
+    // }
 
     ipcMain.on('save-page', (event, pageContent) => {
         store.set('savedPage', pageContent); // Save the content under a variable

@@ -1,4 +1,3 @@
-// Function to create a new section
 function createSection(sectionData = {}) {
     const sectionsContainer = document.getElementById('sectionsContainer');
     const sectionWrapper = document.createElement('div');
@@ -8,7 +7,7 @@ function createSection(sectionData = {}) {
     sectionStatus[sectionWrapper.dataset.id] = {
         active: false,
         scheduledJobs: [],
-        inputMode: sectionData.inputMode === 'Columns' ? 'columns' : 'headers',
+        inputMode: sectionData.inputType || 'url',
         headers: sectionData.inputMode !== 'Columns'
     };
 
@@ -36,32 +35,39 @@ function createSection(sectionData = {}) {
         delete sectionStatus[sectionId];
     });
 
-    const urlDiv = document.createElement('div');
-    urlDiv.classList.add('form-section');
+    const inputDiv = document.createElement('div');
+    inputDiv.classList.add('form-section');
     
-    // Default to URL mode if no value is given or if URL is provided
-    const isUrlMode = !sectionData.hasOwnProperty('isUrlMode') || sectionData.url ? true : sectionData.isUrlMode;
+    // Default to URL mode if no value is given
+    const inputMode = sectionData.inputType || 'url';
     
-    urlDiv.innerHTML = `
-      <label for="url">
-        URL:
-        <button type="button" class="toggle-input-button">
-          ${isUrlMode ? 'Switch to Upload' : 'Switch to URL'}
-        </button>
+    inputDiv.innerHTML = `
+      <label for="inputMode">
+        Input Mode:
+        <select class="input-mode-select">
+          <option value="url" ${inputMode === 'url' ? 'selected' : ''}>URL</option>
+          <option value="upload" ${inputMode === 'upload' ? 'selected' : ''}>Upload</option>
+          <option value="ftp" ${inputMode === 'ftp' ? 'selected' : ''}>FTP</option>
+        </select>
       </label>
       <input 
         type="text" 
         class="url-input" 
         placeholder="Enter URL" 
         value="${sectionData.url || ''}" 
-        style="display: ${isUrlMode ? 'block' : 'none'};"
+        style="display: ${inputMode === 'url' ? 'block' : 'none'};"
       >
       <input 
         type="file" 
         class="file-input" 
         accept=".csv" 
-        style="display: ${isUrlMode ? 'none' : 'block'};"
+        style="display: ${inputMode === 'upload' ? 'block' : 'none'};"
       >
+      <div class="ftp-inputs" style="display: ${inputMode === 'ftp' ? 'block' : 'none'};">
+        <input type="text" class="ftp-address" placeholder="FTP Address" value="${sectionData.ftp?.address || ''}">
+        <input type="number" class="ftp-port" placeholder="FTP Port" value="${sectionData.ftp?.port || ''}">
+        <input type="text" class="ftp-filepath" placeholder="FTP Filepath" value="${sectionData.ftp?.filepath || ''}">
+      </div>
     `;
 
     const locationDiv = document.createElement('div');
@@ -223,7 +229,7 @@ function createSection(sectionData = {}) {
 
     sectionWrapper.appendChild(labelDiv);
     sectionWrapper.appendChild(removeSectionButton);
-    sectionWrapper.appendChild(urlDiv);
+    sectionWrapper.appendChild(inputDiv);
     sectionWrapper.appendChild(loginCredsDiv);
     sectionWrapper.appendChild(stockHeaderDiv);
     sectionWrapper.appendChild(locationDiv);
@@ -263,22 +269,29 @@ function createSection(sectionData = {}) {
 
     sectionsContainer.appendChild(sectionWrapper);
 
-    sectionWrapper.querySelector('.toggle-input-button').addEventListener('click', function() {
-        const urlDiv = this.closest('.form-section');
-        const textInput = urlDiv.querySelector('.url-input');
-        const fileInput = urlDiv.querySelector('.file-input');
+    inputDiv.querySelector('.input-mode-select').addEventListener('change', function() {
+        const selectedMode = this.value;
+        const urlInput = inputDiv.querySelector('.url-input');
+        const fileInput = inputDiv.querySelector('.file-input');
+        const ftpInputs = inputDiv.querySelector('.ftp-inputs');
 
-        if (textInput.style.display === 'none') {
-            textInput.style.display = 'block';
-            fileInput.style.display = 'none';
-            this.textContent = 'Switch to Upload';
-            sectionStatus[sectionWrapper.dataset.id].inputMode = 'url';
-        } else {
-            textInput.style.display = 'none';
-            fileInput.style.display = 'block';
-            this.textContent = 'Switch to URL';
-            sectionStatus[sectionWrapper.dataset.id].inputMode = 'upload';
+        urlInput.style.display = 'none';
+        fileInput.style.display = 'none';
+        ftpInputs.style.display = 'none';
+
+        switch(selectedMode) {
+            case 'url':
+                urlInput.style.display = 'block';
+                break;
+            case 'upload':
+                fileInput.style.display = 'block';
+                break;
+            case 'ftp':
+                ftpInputs.style.display = 'block';
+                break;
         }
+
+        sectionStatus[sectionWrapper.dataset.id].inputMode = selectedMode;
     });
 
     function addScheduleInput(day = '', time = '') {
@@ -360,8 +373,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     )
     if (form){
-        document.getElementById('logFilePath').value = form.logFilePath || ''
-        document.getElementById('emailAddress').value = form.emailAddress || ''
+        document.getElementById('logFilePath').value = form.globalSettings.logFilePath || ''
+        document.getElementById('emailAddress').value = form.globalSettings.emailAddress || ''
         for (const section of form.sections){
             createSection(section)
         }

@@ -1,5 +1,5 @@
 async function processCSV(sectionData, currentStock) {
-    try {
+    // try {
         let stockUpdate = {
             "locationId": sectionData.locationId,
             "binId": sectionData.binId,
@@ -16,7 +16,7 @@ async function processCSV(sectionData, currentStock) {
                 delimiter: sectionData.delimiter,
                 transformHeader: (header) => header.toLowerCase(),
                 complete: async (results) => {
-                    try {
+                    // try {
                         for (const row of results.data) {
                             if(!sectionStatus[sectionData.sectionId].active){continue}
                             let itemFromdb = await getItems(sectionData.stoklyIdentifier, [row[sectionData.supplierIdentifier.toLowerCase()]]).then(r => { return r[0] });
@@ -44,12 +44,12 @@ async function processCSV(sectionData, currentStock) {
                                 }
     
                                 if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
-                                    try{
+                                    // try{
                                         await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
-                                        itemInventoryUpdated(stockUpdate.items)
-                                    } catch {
-                                        itemInventoryUpdatedFailed(stockUpdate.items)
-                                    }
+                                    //     itemInventoryUpdated(stockUpdate.items)
+                                    // } catch {
+                                    //     itemInventoryUpdatedFailed(stockUpdate.items)
+                                    // }
 
                                     stockUpdate.items = [];
                                 }
@@ -68,14 +68,14 @@ async function processCSV(sectionData, currentStock) {
                         }
 
                         resolve();
-                    } catch (error) {
-                        reject(error); // Ensure error is propagated
-                    }
+                    // } catch (error) {
+                    //     reject(error); // Ensure error is propagated
+                    // }
                 },
-                error: (error) => {
-                    console.error('Error parsing CSV:', error);
-                    reject(error); // Ensure error is propagated
-                }
+                // error: (error) => {
+                //     console.error('Error parsing CSV:', error);
+                //     reject(error); // Ensure error is propagated
+                // }
             });
         });
 
@@ -90,37 +90,37 @@ async function processCSV(sectionData, currentStock) {
                     });
                 }
                 if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
-                    try{
+                    // try{
                         await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
                         itemInventoryUpdated(stockUpdate.items)
-                    } catch {
-                        itemInventoryUpdatedFailed(stockUpdate.items)
+                    // } catch {
+                    //     itemInventoryUpdatedFailed(stockUpdate.items)
 
-                    }
+                    // }
                     stockUpdate.items = [];
                 }
             }
     
             if (stockUpdate.items.length > 0 && sectionStatus[sectionData.sectionId].active) {
-                try{
+                // try{
                     await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
                     itemInventoryUpdated(stockUpdate.items)
-                } catch {
-                    itemInventoryUpdatedFailed(stockUpdate.items)
-                }
+                // } catch {
+                //     itemInventoryUpdatedFailed(stockUpdate.items)
+                // }
             }
         }
 
         await Promise.all(attributeUpdateArr);
-    } catch (error) {
-        console.error('Error in processCSV:', error);
-        throw error; // Ensure error is propagated
-    }
+    // } catch (error) {
+    //     console.error('Error in processCSV:', error);
+    //     throw error; // Ensure error is propagated
+    // }
 }
 
 async function updateAttributes(sectionData, row, itemFromdb) {
 
-    try{
+    // try{
         let attibuteUpdate = {
             "attributes": [],
             "appendAttributes": true,
@@ -143,9 +143,9 @@ async function updateAttributes(sectionData, row, itemFromdb) {
             attributeUpdated(itemFromdb)
             return requester('patch', `https://${enviroment}/v0/items/${itemFromdb.itemid}`, attibuteUpdate)
         }
-    }catch{
-        failedToUpdateAttribute(itemFromdb)
-    }
+    // }catch{
+    //     failedToUpdateAttribute(itemFromdb)
+    // }
 
 }
 

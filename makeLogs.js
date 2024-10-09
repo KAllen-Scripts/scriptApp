@@ -7,14 +7,17 @@ let failedToUpdateAttributeCSV = []
 let itemInventoryUpdatedFailedCSV = []
 
 async function removedItemCosts(itemsToUpdateCosts, sectionData){
-    for (const item in itemsToUpdateCosts){
+    for (let i = 0; i < Object.keys(itemsToUpdateCosts).length; i += 200) {
+        const batch = Object.keys(itemsToUpdateCosts).slice(i, i + 200);
+        
+        console.log(Object.keys(batch))
         const itemCostsFromdb = await getItemCosts({
-            itemidonly: [item],
+            itemidonly: Object.keys(batch),
             supplier: [sectionData.supplier]
         });
         for (const dbCost of itemCostsFromdb){
             let costFound = false
-            for (const apiCost of itemsToUpdateCosts[item]){
+            for (const apiCost of itemsToUpdateCosts[dbCost.itemid]){
                 if (apiCost.quantityInUnit == dbCost.quantityinunit){
                     costFound = true
                 }
@@ -38,35 +41,35 @@ async function updateWithNewCosts(costPrices, itemId, sectionData, row){
 }
 
 async function asyncUpdateWithNewCosts(costPrices, itemId, sectionData, row){
-    const itemCostsFromdb = await getItemCosts({
-        itemidonly: [itemId]
-    });
+    // const itemCostsFromdb = await getItemCosts({
+    //     itemidonly: [itemId]
+    // });
 
-    for (const csvCost of costPrices){
-        let costFound = false
-        let { csvPrice, csvQuantityInUnit } = parseCostPrice(csvCost);
-        for (const dbCost of itemCostsFromdb){
-            if (dbCost.quantityinunit == csvQuantityInUnit){
-                costFound = true
-            }
-        }
-        if(!costFound){
-            updateWithNewCostsCSV.push({
-                supplier: sectionData.supplier,
-                'supplier SKU': row[sectionData.supplierIdentifier.toLowerCase()],
-                cost: csvPrice,
-                event: 'Item Cost Added'
-            })
-        }
-    }
+    // for (const csvCost of costPrices){
+    //     let costFound = false
+    //     let { csvPrice, csvQuantityInUnit } = parseCostPrice(csvCost);
+    //     for (const dbCost of itemCostsFromdb){
+    //         if (dbCost.quantityinunit == csvQuantityInUnit){
+    //             costFound = true
+    //         }
+    //     }
+    //     if(!costFound){
+    //         updateWithNewCostsCSV.push({
+    //             supplier: sectionData.supplier,
+    //             'supplier SKU': row[sectionData.supplierIdentifier.toLowerCase()],
+    //             cost: csvPrice,
+    //             event: 'Item Cost Added'
+    //         })
+    //     }
+    // }
     
 
-    function parseCostPrice(costPrice) {
-        const parts = costPrice.split(':');
-        const quantityInUnit = parts[1] === undefined ? 1 : parts[0];
-        const price = parts[1] === undefined ? parts[0] : parts[1] * quantityInUnit;
-        return { price, quantityInUnit };
-    }
+    // function parseCostPrice(costPrice) {
+    //     const parts = costPrice.split(':');
+    //     const quantityInUnit = parts[1] === undefined ? 1 : parts[0];
+    //     const price = parts[1] === undefined ? parts[0] : parts[1] * quantityInUnit;
+    //     return { price, quantityInUnit };
+    // }
 }
 
 function itemInventoryUpdated(items){

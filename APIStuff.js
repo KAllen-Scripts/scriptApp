@@ -8,7 +8,7 @@ function generateSignature(accountKey, clientId, secretKey) {
 }
 
 async function getAccessToken() {
-    try {
+    // try {
         const signature = generateSignature(accountKey, clientId, secretKey);
 
         const response = await axios.post(`https://${enviroment}/v1/grant`, {
@@ -20,10 +20,10 @@ async function getAccessToken() {
         accessToken = response.data.data.authenticationResult.accessToken;
         const expiresIn = response.data.data.authenticationResult.expiresIn; 
         tokenExpirationTime = Date.now() + expiresIn * 1000;
-    } catch (error) {
-        console.error("Error fetching access token:", error);
-        throw error;
-    }
+    // } catch (error) {
+    //     console.error("Error fetching access token:", error);
+    //     throw error;
+    // }
 }
 
 async function ensureToken() {
@@ -53,16 +53,16 @@ async function requester(method, url, data, retry = 3) {
 
     let response = await axios(request)
         .then(r => r.data)
-        .catch(async e => {
-            if (retry <= 0) {
-                console.error(`HTTP error! Status: ${e.response.status}`);
-                return new Error(`HTTP error! Status: ${e.response.status}`);
-            } else {
-                // Try again with a new token if necessary
-                await ensureToken();
-                return requester(method, url, data, retry - 1);
-            }
-        });
+        // .catch(async e => {
+        //     if (retry <= 0) {
+        //         console.error(`HTTP error! Status: ${e.response.status}`);
+        //         return new Error(`HTTP error! Status: ${e.response.status}`);
+        //     } else {
+        //         // Try again with a new token if necessary
+        //         await ensureToken();
+        //         return requester(method, url, data, retry - 1);
+        //     }
+        // });
 
     return response;
 }
@@ -94,4 +94,53 @@ async function replenTokens(){
         tokens = maxTokensToHold;
         await sleep(60000/(tokensOverMinute/maxTokensToHold));
     } while (true);
+}
+
+function getFileByFTP(ftpInputs, username, password) {
+    address = ftpInputs.address;
+    port = ftpInputs.port;
+    filepath = ftpInputs.filepath;
+    return new Promise((resolve, reject) => {
+      const client = new ftp();
+  
+      client.on('ready', () => {
+        client.get(filepath, (err, stream) => {
+          if (err) {
+            client.end();
+            return reject(err);
+          }
+  
+          let fileData = '';
+          const writableStream = new Writable({
+            write(chunk, encoding, callback) {
+              fileData += chunk.toString();
+              callback();
+            }
+          });
+  
+          stream.pipe(writableStream);
+  
+          stream.on('end', () => {
+            client.end();
+            resolve(fileData);
+          });
+  
+          stream.on('error', (err) => {
+            client.end();
+            reject(err);
+          });
+        });
+      });
+  
+      client.on('error', (err) => {
+        reject(err);
+      });
+  
+      client.connect({
+        host: address,
+        port: port,
+        user: username,
+        password: password
+      });
+    });
 }

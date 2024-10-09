@@ -1,12 +1,20 @@
 let itemsBeingUpdated = false;
 
 async function startSyncForSection(section) {
-    try {
+    // try {
         // Initialize an object to store input values
         const sectionData = {
             stockDict: {},
             attDict: {},
-            sectionId: section.dataset.id
+            sectionId: section.dataset.id,
+            supplier: section.querySelector('.section-label-input').value,
+            ftpInputs: {
+                address: section.querySelector('.ftp-address').value,
+                port: section.querySelector('.ftp-port').value,
+                filepath: section.querySelector('.ftp-filepath').value
+            },
+            url: section.querySelector('.url-input').value,
+            filepath: section.querySelector('.file-input')?.files?.[0]?.path
         };
 
         const delimiterInput = section.querySelector('.delimiter-input');
@@ -14,20 +22,10 @@ async function startSyncForSection(section) {
             sectionData.delimiter = delimiterInput.value;
         }
 
-        // Get the URL and file input elements
-        const urlInput = section.querySelector('.url-input');
-        const fileInput = section.querySelector('.file-input');
 
         const labelInput = section.querySelector('.section-label-input');
         if (labelInput) {
             sectionData.supplier = labelInput.value;
-        }
-
-        if (fileInput && fileInput.files.length > 0) {
-            sectionData.filepath = fileInput.files[0].path;
-        }
-        if (urlInput.value.trim() != "") {
-            sectionData.url = urlInput.value;
         }
 
         // Get all other inputs in the section
@@ -78,15 +76,14 @@ async function startSyncForSection(section) {
         // Process the collected data
         await processData(sectionData);
         await makeCSVs(sectionData)
-    } catch (error) {
-        ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id);
-        console.error('Error in startSyncForSection:', error);
-    }
+    // } catch (error) {
+    //     ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id);
+    //     console.error('Error in startSyncForSection:', error);
+    // }
 }
 
 async function processData(sectionData) {
-    
-    try {
+    // try {
         let promiseArr = [];
         let currentStock = {};
 
@@ -118,8 +115,10 @@ async function processData(sectionData) {
             }).then(r => {
                 sectionData.csvData = r.data;
             }));
-        } else {
+        } else if(sectionStatus[sectionData.sectionId].inputMode == 'upload') {
             sectionData.csvData = fs.readFileSync(sectionData.filepath, 'utf8');
+        } else {
+            sectionData.csvData = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password)
         }
 
         promiseArr.push(requester('get', `https://${enviroment}/v1/suppliers?filter=[status]!={1}%26%26[name]=={${sectionData.supplier}}`).then(r=>{
@@ -136,48 +135,39 @@ async function processData(sectionData) {
 
         await Promise.all(promiseArr);
         await processCSV(sectionData, currentStock);
-    } catch (error) {
-        console.error('Error in processData:', error);
-        throw error; // Ensure error is propagated
-    }
+    // } catch (error) {
+    //     console.error('Error in processData:', error);
+    //     throw error; // Ensure error is propagated
+    // }
 }
 
 async function updateItems(sectionData) {
-    try {
+    // try {
         let itemsToUpdate = []
         itemsBeingUpdated = true;
         let lastUpdate = await loadData('lastUpdate');
         let updateTimeStamp = new Date().toISOString();
 
         await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
-            try {
-                itemsToUpdate.push(item.itemId)
-                const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
-                for(const att of [...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier]){
-                    let lowerCaseAtt = att.toLowerCase()
-                    if(lowerCaseKeysObj[lowerCaseAtt] != undefined){
-                        await upsertItemProperty(lowerCaseKeysObj.itemid, lowerCaseAtt, lowerCaseKeysObj[lowerCaseAtt]);
-                    }
+            itemsToUpdate.push(item.itemId)
+            const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
+            for(const att of [...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier]){
+                let lowerCaseAtt = att.toLowerCase()
+                if(lowerCaseKeysObj[lowerCaseAtt] != undefined){
+                    await upsertItemProperty(lowerCaseKeysObj.itemid, lowerCaseAtt, lowerCaseKeysObj[lowerCaseAtt]);
                 }
-            } catch (error) {
-                console.error('Error upserting item:', error);
-                throw error;
             }
         })
 
         if (Object.keys(sectionData.attributes).length) {
             await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[itemAttributeId]=*{${Object.values(sectionData.attributes).map(obj => obj.itemAttributeId)}}%26%26[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
-                try {
-                    await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
-                } catch (error) {
-                    console.error('Error upserting item:', error);
-                    throw error;
-                }
+                await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
             });
         }
 
 
-
+        
+        console.log(3)
         let itemsToUpdateCosts = {}
         for (let i = 0; i < itemsToUpdate.length; i += 200) {
             const batch = itemsToUpdate.slice(i, i + 200);
@@ -201,13 +191,12 @@ async function updateItems(sectionData) {
         for (const i in itemsToUpdateCosts){
             await upsertItemCost(i, itemsToUpdateCosts[i])
         }
-        
-
         await saveData({ lastUpdate: updateTimeStamp });
+        
         itemsBeingUpdated = false;
-    } catch (error) {
-        console.error('Error in updateItems:', error);
-        itemsBeingUpdated = false;
-        throw error;
-    }
+    // } catch (error) {
+    //     console.error('Error in updateItems:', error);
+    //     itemsBeingUpdated = false;
+    //     throw error;
+    // }
 }
