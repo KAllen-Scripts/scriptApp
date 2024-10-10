@@ -64,13 +64,14 @@ async function upsertItemProperty(itemId, propertyName, propertyValue) {
     // }
 }
 
-async function upsertItemCost(itemId, costEntries) {
-    // try {
-        await ipcRenderer.invoke('upsert-item-cost', itemId, costEntries);
-    // } catch (error) {
-    //     console.error('Error upserting item costs:', error);
-    //     throw error;
-    // }
+async function upsertItemCost(itemCostEntries) {
+    try {
+        // Pass the entire object through IPC
+        await ipcRenderer.invoke('upsert-item-cost', itemCostEntries);
+    } catch (error) {
+        console.error('Error upserting item costs:', error);
+        throw error;
+    }
 }
 
 

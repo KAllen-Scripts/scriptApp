@@ -165,53 +165,51 @@ function createWindow() {
             }
         });
 
-        ipcMain.handle('upsert-item-cost', async (event, itemId, costEntries) => {
-            if (!Array.isArray(costEntries)) {
-                throw new Error('Expected an array of cost entries');
-            }
+        ipcMain.handle('upsert-item-cost', async (event, itemCostEntries) => {
+            try {
+                // Loop through the object entries
+                for (const [itemId, costEntries] of Object.entries(itemCostEntries)) {
+                    // Remove all existing entries for the provided itemId
+                    const deleteQuery = `DELETE FROM itemCosts WHERE itemId = ?`;
+                    const deleteStmt = itemCostsDB.prepare(deleteQuery);
+                    deleteStmt.run(itemId.toLowerCase());
         
-            const deleteQuery = `DELETE FROM itemCosts WHERE LOWER(itemId) = ?`;
+                    // Prepare the insert statement
+                    const insertQuery = `INSERT INTO itemCosts (itemId, itemIdOnly, supplier, supplierSku, cost, uomID, supplierId, quantityInUnit)
+                                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                         ON CONFLICT(itemId, supplier, quantityInUnit) DO UPDATE SET 
+                                         itemIdOnly = excluded.itemIdOnly, 
+                                         supplierSku = excluded.supplierSku, 
+                                         cost = excluded.cost, 
+                                         uomID = excluded.uomID, 
+                                         supplierId = excluded.supplierId, 
+                                         quantityInUnit = excluded.quantityInUnit`;
         
-            // try {
-                // Remove all existing entries for the provided itemId
-                const deleteStmt = itemCostsDB.prepare(deleteQuery);
-                deleteStmt.run(itemId.toLowerCase());
+                    const insertStmt = itemCostsDB.prepare(insertQuery);
         
-                // Prepare the insert statement
-                const insertQuery = `INSERT INTO itemCosts (itemId, itemIdOnly, supplier, supplierSku, cost, uomID, supplierId, quantityInUnit)
-                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                                     ON CONFLICT(itemId, supplier, quantityInUnit) DO UPDATE SET 
-                                     itemIdOnly = excluded.itemIdOnly, 
-                                     supplierSku = excluded.supplierSku, 
-                                     cost = excluded.cost, 
-                                     uomID = excluded.uomID, 
-                                     supplierId = excluded.supplierId, 
-                                     quantityInUnit = excluded.quantityInUnit`;
+                    // Insert each entry from the costEntries array into the database
+                    for (const entry of costEntries) {
+                        const { supplier, supplierSku, cost, uomID, supplierId, quantityInUnit } = entry;
         
-                const insertStmt = itemCostsDB.prepare(insertQuery);
-        
-                // Insert each entry from the array into the database
-                for (const entry of costEntries) {
-                    const { supplier, supplierSku, cost, uomID, supplierId, quantityInUnit } = entry;
-        
-                    // Run the insert statement
-                    insertStmt.run(
-                        itemId.toLowerCase(),
-                        itemId.toLowerCase(), // itemIdOnly
-                        supplier.toLowerCase(),
-                        supplierSku,
-                        cost,
-                        uomID,
-                        supplierId,
-                        quantityInUnit
-                    );
+                        // Run the insert statement
+                        insertStmt.run(
+                            itemId.toLowerCase(),
+                            itemId.toLowerCase(), // itemIdOnly
+                            supplier.toLowerCase(),
+                            supplierSku,
+                            cost,
+                            uomID,
+                            supplierId,
+                            quantityInUnit
+                        );
+                    }
                 }
         
                 return true;
-            // } catch (error) {
-            //     console.error('Error upserting item costs:', error);
-            //     throw error;
-            // }
+            } catch (error) {
+                console.error('Error upserting item costs:', error);
+                throw error;
+            }
         });
         
         

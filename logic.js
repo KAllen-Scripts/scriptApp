@@ -168,9 +168,9 @@ async function updateItems(sectionData) {
 
         
         console.log(3)
-        let itemsToUpdateCosts = {}
         for (let i = 0; i < itemsToUpdate.length; i += 200) {
             const batch = itemsToUpdate.slice(i, i + 200);
+            let itemsToUpdateCosts = {}
             
             await loopThrough(`https://${enviroment}/v0/units-of-measure`, 'size=1000&sortDirection=ASC&sortField=supplierSku', `[itemId]=*{${batch.join(',')}}`, async (UOM) => {
                 if(itemsToUpdateCosts[UOM.itemId] == undefined){itemsToUpdateCosts[UOM.itemId] = []}
@@ -184,12 +184,8 @@ async function updateItems(sectionData) {
                     quantityInUnit:UOM.quantityInUnit
                 })
             });
-        }
-
-        await removedItemCosts(itemsToUpdateCosts, sectionData)
-
-        for (const i in itemsToUpdateCosts){
-            await upsertItemCost(i, itemsToUpdateCosts[i])
+            await upsertItemCost(itemsToUpdateCosts)
+            await removedItemCosts(itemsToUpdateCosts, sectionData)
         }
         await saveData({ lastUpdate: updateTimeStamp });
         

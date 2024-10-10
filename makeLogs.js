@@ -7,8 +7,10 @@ let failedToUpdateAttributeCSV = []
 let itemInventoryUpdatedFailedCSV = []
 
 async function removedItemCosts(itemsToUpdateCosts, sectionData){
-    for (let i = 0; i < Object.keys(itemsToUpdateCosts).length; i += 200) {
-        const batch = Object.keys(itemsToUpdateCosts).slice(i, i + 200);
+    console.log(itemsToUpdateCosts)
+    const entries = Object.entries(itemsToUpdateCosts);
+    for (let i = 0; i < entries.length; i += 200) {
+        const batch = entries.slice(i, i + 200);
         
         console.log(Object.keys(batch))
         const itemCostsFromdb = await getItemCosts({
@@ -33,6 +35,7 @@ async function removedItemCosts(itemsToUpdateCosts, sectionData){
             }
         }
     }
+
 }
 
 promiseArr = []
