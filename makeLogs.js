@@ -43,7 +43,10 @@ async function updateWithNewCosts(costPrices, itemId, sectionData, row){
     promiseArr.push(asyncUpdateWithNewCosts(costPrices, itemId, sectionData, row))
 }
 
+let costPricesItemIds = {}
 async function asyncUpdateWithNewCosts(costPrices, itemId, sectionData, row){
+    costPricesItemIds.push(itemId)
+    if (!costPricesItemIds[sectionData.sectionId]){costPricesItemIds[sectionData.sectionId] = []}
     // const itemCostsFromdb = await getItemCosts({
     //     itemidonly: [itemId]
     // });
@@ -131,7 +134,7 @@ async function makeCSVs(sectionData) {
 
     }
 
-    ipcRenderer.send('write-CSVs', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, sectionData.sectionId);
+    ipcRenderer.send('write-CSVs', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, sectionData.sectionId, sectionData.supplier);
 
     function sendBatch(name, batch) {
         return new Promise((resolve, reject) => {

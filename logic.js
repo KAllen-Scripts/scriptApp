@@ -1,7 +1,7 @@
 let itemsBeingUpdated = false;
 
 async function startSyncForSection(section) {
-    // try {
+    try {
         // Initialize an object to store input values
         const sectionData = {
             stockDict: {},
@@ -76,10 +76,10 @@ async function startSyncForSection(section) {
         // Process the collected data
         await processData(sectionData);
         await makeCSVs(sectionData)
-    // } catch (error) {
-    //     ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id);
-    //     console.error('Error in startSyncForSection:', error);
-    // }
+    } catch (error) {
+        ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id);
+        console.error('Error in startSyncForSection:', error);
+    }
 }
 
 async function processData(sectionData) {
