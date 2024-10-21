@@ -2,6 +2,14 @@ let itemsBeingUpdated = false;
 
 async function startSyncForSection(section) {
     try {
+        clearLogs()
+        console.log(section.querySelector('.activate-button'))
+        let activateButton = section.querySelector('.activate-button')
+        activateButton.textContent = 'Processing'
+        activateButton.classList.add('processing');
+        activateButton.classList.remove('active');
+        activateButton.classList.remove('inactive');
+        console.log(sectionStatus)
         // Initialize an object to store input values
         const sectionData = {
             stockDict: {},
@@ -76,9 +84,19 @@ async function startSyncForSection(section) {
         // Process the collected data
         await processData(sectionData);
         await makeCSVs(sectionData)
+        activateButton.textContent = 'Deactivate'
+        activateButton.classList.add('active');
+        activateButton.classList.remove('processing');
+        activateButton.classList.remove('inactive');
     } catch (error) {
-        ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id);
+        ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id, section.querySelector('.section-label-input').value);
         console.error('Error in startSyncForSection:', error);
+        console.log(section)
+        let activateButton = section.querySelector('.activate-button')
+        activateButton.textContent = 'Deactivate'
+        activateButton.classList.add('active');
+        activateButton.classList.remove('processing');
+        activateButton.classList.remove('inactive');
     }
 }
 
@@ -131,7 +149,7 @@ async function processData(sectionData) {
             }
         }
 
-        promiseArr.push(updateItems(sectionData));
+        await updateItems(sectionData)
 
         await Promise.all(promiseArr);
         await processCSV(sectionData, currentStock);

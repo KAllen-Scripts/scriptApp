@@ -6,13 +6,22 @@ let attributeUpdatedCSV = []
 let failedToUpdateAttributeCSV = []
 let itemInventoryUpdatedFailedCSV = []
 
+function clearLogs(){
+    removedItemCostsCSV = []
+    updateWithNewCostsCSV = []
+    itemInventoryUpdatedCSV = []
+    itemInventorySetToZeroCSV = []
+    attributeUpdatedCSV = []
+    failedToUpdateAttributeCSV = []
+    itemInventoryUpdatedFailedCSV = []
+}
+
 async function removedItemCosts(itemsToUpdateCosts, sectionData){
     console.log(itemsToUpdateCosts)
     const entries = Object.entries(itemsToUpdateCosts);
     for (let i = 0; i < entries.length; i += 200) {
         const batch = entries.slice(i, i + 200);
         
-        console.log(Object.keys(batch))
         const itemCostsFromdb = await getItemCosts({
             itemidonly: Object.keys(batch),
             supplier: [sectionData.supplier]
@@ -38,44 +47,8 @@ async function removedItemCosts(itemsToUpdateCosts, sectionData){
 
 }
 
-promiseArr = []
-async function updateWithNewCosts(costPrices, itemId, sectionData, row){
-    promiseArr.push(asyncUpdateWithNewCosts(costPrices, itemId, sectionData, row))
-}
-
-let costPricesItemIds = {}
-async function asyncUpdateWithNewCosts(costPrices, itemId, sectionData, row){
-    costPricesItemIds.push(itemId)
-    if (!costPricesItemIds[sectionData.sectionId]){costPricesItemIds[sectionData.sectionId] = []}
-    // const itemCostsFromdb = await getItemCosts({
-    //     itemidonly: [itemId]
-    // });
-
-    // for (const csvCost of costPrices){
-    //     let costFound = false
-    //     let { csvPrice, csvQuantityInUnit } = parseCostPrice(csvCost);
-    //     for (const dbCost of itemCostsFromdb){
-    //         if (dbCost.quantityinunit == csvQuantityInUnit){
-    //             costFound = true
-    //         }
-    //     }
-    //     if(!costFound){
-    //         updateWithNewCostsCSV.push({
-    //             supplier: sectionData.supplier,
-    //             'supplier SKU': row[sectionData.supplierIdentifier.toLowerCase()],
-    //             cost: csvPrice,
-    //             event: 'Item Cost Added'
-    //         })
-    //     }
-    // }
-    
-
-    // function parseCostPrice(costPrice) {
-    //     const parts = costPrice.split(':');
-    //     const quantityInUnit = parts[1] === undefined ? 1 : parts[0];
-    //     const price = parts[1] === undefined ? parts[0] : parts[1] * quantityInUnit;
-    //     return { price, quantityInUnit };
-    // }
+async function updateWithNewCosts(UOM){
+    updateWithNewCostsCSV(UOM)
 }
 
 function itemInventoryUpdated(items){
@@ -83,7 +56,8 @@ function itemInventoryUpdated(items){
         item.event = 'Item Inventory Updated With New Value'
         delete item.itemId
     }
-    itemInventoryUpdatedCSV.push([...items])
+    itemInventoryUpdatedCSV.push(...[...items])
+    console.log(JSON.stringify(itemInventoryUpdatedCSV))
 }
 
 function itemInventoryUpdatedFailed(items){
@@ -111,7 +85,6 @@ function failedToUpdateAttribute(item){
 }
 
 async function makeCSVs(sectionData) {
-    await Promise.all(promiseArr);
 
     // Mapping variable names to their respective arrays
     const csvMaps = {
@@ -144,4 +117,5 @@ async function makeCSVs(sectionData) {
             });
         });
     }
+    
 }

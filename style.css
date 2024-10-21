@@ -124,6 +124,10 @@ body {
     background-color: #dc3545; /* Red for inactive */
 }
 
+.activate-button.processing {
+    background-color: #b1b533;
+}
+
 .activate-button:hover {
     opacity: 0.9;
 }

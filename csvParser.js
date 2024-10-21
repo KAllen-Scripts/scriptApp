@@ -182,14 +182,16 @@ async function updateCost(update, sectionData, row, itemFromdb, attribute) {
 
             // If the quantity and cost don't match, add the item and remove the cost price
             if (itemCost.quantityinunit == quantityInUnit && price != itemCost.cost) {
-                update.unitsOfMeasure.push({
+                let UOM = {
                     unitOfMeasureId: itemCost.uomid,
                     supplierId: sectionData.supplierId,
                     supplierName: itemCost.supplier,
                     supplierSku: itemCost.suppliersku,
                     cost: { amount: price },
                     quantityInUnit: quantityInUnit
-                });
+                }
+                update.unitsOfMeasure.push(UOM);
+                updateWithNewCosts(UOM)
                 update.updated = true;
                 costAdded = true;
 
@@ -201,18 +203,18 @@ async function updateCost(update, sectionData, row, itemFromdb, attribute) {
 
         // If no match was found, push the current item cost from the DB
         if (!costAdded) {
-            update.unitsOfMeasure.push({
+            let UOM = {
                 unitOfMeasureId: itemCost.uomid,
                 supplierId: sectionData.supplierId,
                 supplierName: itemCost.supplier,
                 supplierSku: itemCost.suppliersku,
                 cost: { amount: itemCost.cost },
                 quantityInUnit: itemCost.quantityinunit
-            });
+            }
+            update.unitsOfMeasure.push(UOM);
+            updateWithNewCosts(UOM)
         }
     }
-
-    updateWithNewCosts(costPrices, itemFromdb.itemid, sectionData, row)
 
     // Add remaining unmatched costPrices
     for (const costPrice of costPrices) {
