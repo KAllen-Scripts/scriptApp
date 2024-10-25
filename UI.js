@@ -322,6 +322,13 @@ function createSection(sectionData = {}) {
     } else {
         addScheduleInput();
     }
+    if(sectionData.isActive){
+        activateButton.dispatchEvent(new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        }));
+    }
 }
 
 // Function to schedule jobs

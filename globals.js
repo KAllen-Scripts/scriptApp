@@ -106,8 +106,9 @@ function saveFormData() {
     const sectionWrappers = document.querySelectorAll('.section-wrapper');
 
     sectionWrappers.forEach((section, index) => {
-        console.log(section.querySelector('.ftp-inputs'))
+        console.log(section)
         const sectionData = {
+            isActive: !section.querySelector('button.activate-button').classList.contains('inactive'),
             id: section.dataset.id,
             label: section.querySelector('.section-label-input').value,
             url: section.querySelector('.url-input').value,
