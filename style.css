@@ -305,3 +305,25 @@ body {
 .save-button:hover {
     background-color: rgba(0, 0, 0, 0.1); /* Change color on hover */
 }
+
+/* Style for the top-left button */
+.top-left-button {
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    width: 30px; /* Size of the button */
+    height: 30px; /* Size of the button */
+    background-image: url('./reset-icon.png'); /* Placeholder for the image */
+    background-size: contain;
+    background-repeat: no-repeat;
+    border: none;
+    cursor: pointer;
+    outline: none;
+    border-radius: 5px; /* Optional for rounded corners */
+    background-color: transparent; /* Transparent background */
+    transition: background-color 0.3s;
+}
+
+.top-left-button:hover {
+    background-color: rgba(0, 0, 0, 0.1); /* Change color on hover */
+}

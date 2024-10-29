@@ -51,9 +51,9 @@ async function processCSV(sectionData, currentStock) {
                                         if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
                                             try{
                                                 await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
-                                                itemInventoryUpdated(stockUpdate.items)
+                                                itemInventoryUpdated(stockUpdate.items, sectionData.sectionId)
                                             } catch {
-                                                itemInventoryUpdatedFailed(stockUpdate.items)
+                                                itemInventoryUpdatedFailed(stockUpdate.items, sectionData.sectionId)
                                             }
         
                                             stockUpdate.items = [];
@@ -95,9 +95,9 @@ async function processCSV(sectionData, currentStock) {
                 if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
                     try{
                         await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
-                        itemInventoryUpdated(stockUpdate.items)
+                        itemInventorySetToZero(stockUpdate.items, sectionData.sectionId)
                     } catch {
-                        itemInventoryUpdatedFailed(stockUpdate.items)
+                        itemInventoryUpdatedFailed(stockUpdate.items, sectionData.sectionId)
                     }
                     stockUpdate.items = [];
                 }
@@ -106,9 +106,9 @@ async function processCSV(sectionData, currentStock) {
             if (stockUpdate.items.length > 0 && sectionStatus[sectionData.sectionId].active) {
                 try{
                     await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
-                    itemInventoryUpdated(stockUpdate.items)
+                    itemInventoryUpdated(stockUpdate.items, sectionData.sectionId)
                 } catch {
-                    itemInventoryUpdatedFailed(stockUpdate.items)
+                    itemInventoryUpdatedFailed(stockUpdate.items, sectionData.sectionId)
                 }
             }
         }
@@ -142,11 +142,11 @@ async function updateAttributes(sectionData, row, itemFromdb) {
         }
     
         if (attibuteUpdate.updated){
-            attributeUpdated(itemFromdb)
+            attributeUpdated(itemFromdb, sectionData.sectionId)
             return requester('patch', `https://${enviroment}/v0/items/${itemFromdb.itemid}`, attibuteUpdate)
         }
     }catch{
-        failedToUpdateAttribute(itemFromdb)
+        failedToUpdateAttribute(itemFromdb, sectionData.sectionId)
     }
 
 }
@@ -191,7 +191,7 @@ async function updateCost(update, sectionData, row, itemFromdb, attribute) {
                     quantityInUnit: quantityInUnit
                 }
                 update.unitsOfMeasure.push(UOM);
-                updateWithNewCosts(UOM)
+                updateWithNewCosts(UOM, sectionData.sectionId)
                 update.updated = true;
                 costAdded = true;
 
@@ -212,7 +212,7 @@ async function updateCost(update, sectionData, row, itemFromdb, attribute) {
                 quantityInUnit: itemCost.quantityinunit
             }
             update.unitsOfMeasure.push(UOM);
-            updateWithNewCosts(UOM)
+            updateWithNewCosts(UOM, sectionData.sectionId)
         }
     }
 

@@ -60,7 +60,7 @@ function createWindow() {
         if(CSVs[sectionId] == undefined){CSVs[sectionId] = {}}
         if(CSVs[sectionId][csvName] == undefined){CSVs[sectionId][csvName] = []}
         CSVs[sectionId][csvName].push(...data)
-        event.sender.send('data-received');
+        event.sender.send(`data-received-${sectionId}`);
     });
 
     ipcMain.on('write-CSVs', (event, logPath, email, sectionId, supplier) => {
@@ -286,8 +286,6 @@ function saveObjectArrayToCSV(filePath, objectArray) {
     fs.writeFile(filePath, csv, 'utf8', (err) => {
         if (err) {
             console.error('Error writing CSV file:', err);
-        } else {
-            console.log('CSV file successfully saved at', filePath);
         }
     });
 }

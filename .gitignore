@@ -3,3 +3,9 @@
 node_modules
 dist
 package-lock.json
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production

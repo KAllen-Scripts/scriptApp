@@ -2,7 +2,7 @@ function createSection(sectionData = {}) {
     const sectionsContainer = document.getElementById('sectionsContainer');
     const sectionWrapper = document.createElement('div');
     sectionWrapper.classList.add('section-wrapper');
-    sectionWrapper.dataset.id = sectionData.id || Date.now().toString();
+    sectionWrapper.dataset.id = sectionData.id || [...Array(12)].map(() => Math.random().toString(36)[2]).join('') + Date.now().toString(36);
 
     sectionStatus[sectionWrapper.dataset.id] = {
         active: false,
@@ -380,8 +380,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     )
     if (form){
-        document.getElementById('logFilePath').value = form.globalSettings.logFilePath || ''
-        document.getElementById('emailAddress').value = form.globalSettings.emailAddress || ''
+        document.getElementById('logFilePath').value = form?.globalSettings?.logFilePath || ''
+        document.getElementById('emailAddress').value = form?.globalSettings?.emailAddress || ''
         for (const section of form.sections){
             createSection(section)
         }

@@ -54,6 +54,11 @@ async function requester(method, url, data, retry = 3) {
         data: data
     };
 
+    if(method.toLowerCase() != 'get'){
+        console.log(request)
+        return
+    }
+
     let response = await axios(request)
         .then(r => r.data)
         .catch(async e => {

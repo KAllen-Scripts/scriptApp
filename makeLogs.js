@@ -5,19 +5,25 @@ let itemInventorySetToZeroCSV = []
 let attributeUpdatedCSV = []
 let failedToUpdateAttributeCSV = []
 let itemInventoryUpdatedFailedCSV = []
+let logs = {}
 
-function clearLogs(){
-    removedItemCostsCSV = []
-    updateWithNewCostsCSV = []
-    itemInventoryUpdatedCSV = []
-    itemInventorySetToZeroCSV = []
-    attributeUpdatedCSV = []
-    failedToUpdateAttributeCSV = []
-    itemInventoryUpdatedFailedCSV = []
+function logStart(sectionId){
+    logs[sectionId] = {
+        removedItemCostsCSV: [],
+        updateWithNewCostsCSV: [],
+        itemInventoryUpdatedCSV: [],
+        itemInventorySetToZeroCSV: [],
+        attributeUpdatedCSV: [],
+        failedToUpdateAttributeCSV: [],
+        itemInventoryUpdatedFailedCSV: [] 
+    }
+}
+
+function logDelete(sectionId){
+    delete logs[sectionId]
 }
 
 async function removedItemCosts(itemsToUpdateCosts, sectionData){
-    console.log(itemsToUpdateCosts)
     const entries = Object.entries(itemsToUpdateCosts);
     for (let i = 0; i < entries.length; i += 200) {
         const batch = entries.slice(i, i + 200);
@@ -34,7 +40,7 @@ async function removedItemCosts(itemsToUpdateCosts, sectionData){
                 }
             }
             if(!costFound){
-                itemCostChangesCSV.push({
+                logs[sectionData.sectionId].itemCostChangesCSV.push({
                     itemId: dbCost.itemid,
                     supplier: dbCost.supplier,
                     'supplier SKU': dbCost.supplierSku,
@@ -47,54 +53,53 @@ async function removedItemCosts(itemsToUpdateCosts, sectionData){
 
 }
 
-async function updateWithNewCosts(UOM){
-    updateWithNewCostsCSV(UOM)
+async function updateWithNewCosts(UOM, sectionId){
+    logs[sectionId].updateWithNewCostsCSV(UOM)
 }
 
-function itemInventoryUpdated(items){
+function itemInventoryUpdated(items, sectionId){
     for (const item of items){
         item.event = 'Item Inventory Updated With New Value'
         delete item.itemId
     }
-    itemInventoryUpdatedCSV.push(...[...items])
-    console.log(JSON.stringify(itemInventoryUpdatedCSV))
+    logs[sectionId].itemInventoryUpdatedCSV.push(...[...items])
 }
 
-function itemInventoryUpdatedFailed(items){
+function itemInventoryUpdatedFailed(items, sectionId){
     for (const item of items){
         item.event = 'Item Inventory Updated Failed'
         delete item.itemId
     }
-    itemInventoryUpdatedFailedCSV.push([...items])
+    logs[sectionId].itemInventoryUpdatedFailedCSV.push(...[...items])
 }
 
-function itemInventorySetToZero(items){
+function itemInventorySetToZero(items, sectionId){
     for (const item of items){
         item.event = 'Item Inventory Updated With New Value'
         delete item.itemId
     }
-    itemInventorySetToZeroCSV.push([...items])
+    logs[sectionId].itemInventorySetToZeroCSV.push(...[...items])
 }
 
-function attributeUpdated(item){
-    attributeUpdatedCSV.push(item)
+function attributeUpdated(item, sectionId){
+    logs[sectionId].attributeUpdatedCSV.push(item)
 }
 
-function failedToUpdateAttribute(item){
-    failedToUpdateAttributeCSV.push(item)
+function failedToUpdateAttribute(item, sectionId){
+    logs[sectionId].failedToUpdateAttributeCSV.push(item)
 }
 
 async function makeCSVs(sectionData) {
 
     // Mapping variable names to their respective arrays
     const csvMaps = {
-        'Item Costs Removed': removedItemCostsCSV,
-        'Item Costs Added': updateWithNewCostsCSV,
-        'Inventory Adjusted': itemInventoryUpdatedCSV,
-        'Inventory Set To Zero': itemInventorySetToZeroCSV,
-        'Attributes Updated': attributeUpdatedCSV,
-        'Attributes Failed To Updates': failedToUpdateAttributeCSV,
-        'Inventory Failed To Update': itemInventoryUpdatedFailedCSV
+        'Item Costs Removed': logs[sectionData.sectionId].removedItemCostsCSV,
+        'Item Costs Added': logs[sectionData.sectionId].updateWithNewCostsCSV,
+        'Inventory Adjusted': logs[sectionData.sectionId].itemInventoryUpdatedCSV,
+        'Inventory Set To Zero': logs[sectionData.sectionId].itemInventorySetToZeroCSV,
+        'Attributes Updated': logs[sectionData.sectionId].attributeUpdatedCSV,
+        'Attributes Failed To Updates': logs[sectionData.sectionId].failedToUpdateAttributeCSV,
+        'Inventory Failed To Update': logs[sectionData.sectionId].itemInventoryUpdatedFailedCSV
     };
 
     // Iterating over the csvMaps object
@@ -112,7 +117,7 @@ async function makeCSVs(sectionData) {
     function sendBatch(name, batch) {
         return new Promise((resolve, reject) => {
             ipcRenderer.send('data-sent', name, batch, sectionData.sectionId);
-            ipcRenderer.once('data-received', (event) => {
+            ipcRenderer.once(`data-received-${sectionData.sectionId}`, (event) => {
                 resolve();
             });
         });

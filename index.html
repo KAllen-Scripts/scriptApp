@@ -6,7 +6,7 @@
     <title>Stokly Sync</title>
     <link rel="stylesheet" type="text/css" href="style.css">
     <script defer src="./globals.js"></script>
-    v<script defer src="./makeLogs.js"></script>
+    <script defer src="./makeLogs.js"></script>
     <script defer src="./csvParser.js"></script>
     <script defer src="./logic.js"></script>
     <script defer src="./APIStuff.js"></script>
@@ -14,6 +14,7 @@
 </head>
 <body>
     <div class="form-container">
+        <button id="topLeftButton" class="top-left-button" title="Top Left Button" onclick="resetUpdateFlag()"></button>
         <button id="saveButton" class="save-button" title="Save" onclick="saveFormData()"></button>
         <h1>Stokly Sync</h1>
 
