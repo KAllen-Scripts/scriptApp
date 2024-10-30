@@ -209,11 +209,9 @@ async function updateItems(sectionData) {
             }
         })
 
-        if (Object.keys(sectionData.attributes).length) {
-            await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
-                await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
-            });
-        }
+        await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
+            await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
+        });
 
         for (let i = 0; i < itemsToUpdate.length; i += 200) {
             const batch = itemsToUpdate.slice(i, i + 200);

@@ -256,6 +256,57 @@ function createWindow() {
         return store.get('savedPage'); // Return the saved page content
     });
 
+    function deleteAllDatabases() {
+        try {
+            // Close the databases if they are open
+            if (itemsAttributesDB) itemsAttributesDB.close();
+            if (itemCostsDB) itemCostsDB.close();
+    
+            // Delete the database files
+            const itemsAttributesDBPath = path.join(app.getPath('userData'), 'itemsAttributesDB.db');
+            const itemCostsDBPath = path.join(app.getPath('userData'), 'itemCostsDB.db');
+            
+            if (fs.existsSync(itemsAttributesDBPath)) fs.unlinkSync(itemsAttributesDBPath);
+            if (fs.existsSync(itemCostsDBPath)) fs.unlinkSync(itemCostsDBPath);
+    
+            // Reinitialize the databases
+            itemsAttributesDB = new Database(itemsAttributesDBPath);
+            itemCostsDB = new Database(itemCostsDBPath);
+    
+            // Recreate tables
+            itemsAttributesDB.exec(`CREATE TABLE IF NOT EXISTS items (
+                itemId TEXT PRIMARY KEY COLLATE NOCASE
+            )`);
+    
+            itemCostsDB.exec(`CREATE TABLE IF NOT EXISTS itemCosts (
+                itemId TEXT COLLATE NOCASE,
+                itemIdOnly TEXT COLLATE NOCASE,
+                supplier TEXT COLLATE NOCASE,
+                supplierSku TEXT COLLATE NOCASE,
+                uomID TEXT COLLATE NOCASE,
+                supplierId TEXT COLLATE NOCASE,
+                quantityInUnit REAL,
+                cost REAL,
+                PRIMARY KEY (itemId, supplier, quantityInUnit)
+            )`);
+    
+            console.log('Databases have been deleted and reinitialized.');
+        } catch (error) {
+            console.error('Error deleting and reinitializing databases:', error);
+            throw error;
+        }
+    }
+    
+    // IPC handler for deleting all databases
+    ipcMain.on('delete-all-databases', (event) => {
+        try {
+            deleteAllDatabases();
+            event.sender.send('delete-all-databases-success');
+        } catch (error) {
+            event.sender.send('delete-all-databases-failed', error.message);
+        }
+    });
+
 }
 
 function sendEmailSMTP2GO(to, subject, text) {
