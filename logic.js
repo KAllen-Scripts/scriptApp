@@ -201,11 +201,8 @@ async function updateItems(sectionData) {
         await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
             itemsToUpdate.push(item.itemId)
             const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
-            for(const att of [...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier]){
-                let lowerCaseAtt = att.toLowerCase()
-                if(lowerCaseKeysObj[lowerCaseAtt] != undefined){
-                    await upsertItemProperty(lowerCaseKeysObj.itemid, lowerCaseAtt, lowerCaseKeysObj[lowerCaseAtt]);
-                }
+            for (const att in lowerCaseKeysObj){
+                await upsertItemProperty(lowerCaseKeysObj.itemid, att.toLowerCase(), lowerCaseKeysObj[att.toLowerCase()]);
             }
         })
 

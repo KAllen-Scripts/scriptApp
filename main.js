@@ -135,32 +135,48 @@ function createWindow() {
         });
 
         ipcMain.handle('upsert-item-property', async (event, itemId, propertyName, propertyValue) => {
-            // Check if the column already exists
-            const columnExistsQuery = `
-                SELECT name 
-                FROM pragma_table_info('items') 
-                WHERE name = ?;
-            `;
+            // Normalize the property name to avoid case-sensitive issues
+            const normalizedPropertyName = propertyName.replace(/[^a-zA-Z0-9_]/g, '_');
             
             try {
-                const columnCheck = itemsAttributesDB.prepare(columnExistsQuery).get(propertyName);
+                // Special case handling for 'itemId' column
+                if (normalizedPropertyName.toLowerCase() === 'itemid') {
+                    return false;
+                }
+        
+                // Check if the column already exists (more robust method)
+                const columnsQuery = `PRAGMA table_info(items)`;
+                const columns = itemsAttributesDB.prepare(columnsQuery).all();
+                const columnExists = columns.some(col => col.name.toLowerCase() === normalizedPropertyName.toLowerCase());
                 
                 // If the column doesn't exist, add it
-                if (!columnCheck) {
-                    itemsAttributesDB.exec(`ALTER TABLE items ADD COLUMN "${propertyName}" TEXT COLLATE NOCASE`);
+                if (!columnExists) {
+                    // Use a safe ALTER TABLE to add the column
+                    itemsAttributesDB.exec(`ALTER TABLE items ADD COLUMN "${normalizedPropertyName}" TEXT COLLATE NOCASE`);
                 }
                 
-                // Proceed with the upsert operation
-                const query = `INSERT INTO items (itemId, "${propertyName}") 
-                               VALUES (?, ?)
-                               ON CONFLICT(itemId) DO UPDATE SET 
-                               "${propertyName}" = excluded."${propertyName}"`;
+                // Prepare the upsert query
+                const query = `
+                    INSERT INTO items (itemId, "${normalizedPropertyName}") 
+                    VALUES (?, ?)
+                    ON CONFLICT(itemId) DO UPDATE SET 
+                    "${normalizedPropertyName}" = excluded."${normalizedPropertyName}"
+                `;
+                
                 const stmt = itemsAttributesDB.prepare(query);
-                const info = stmt.run(itemId.toLowerCase(), propertyValue ? propertyValue.toString() : null);
+                const info = stmt.run(
+                    itemId.toLowerCase(), 
+                    propertyValue ? propertyValue.toString() : null
+                );
         
                 return info.changes > 0;
             } catch (error) {
                 console.error('Error upserting item property:', error);
+                
+                // More detailed error logging
+                console.error('Attempted to add column:', normalizedPropertyName);
+                console.error('Error details:', error.message);
+                
                 throw error;
             }
         });

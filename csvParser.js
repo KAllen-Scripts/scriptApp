@@ -40,6 +40,17 @@ async function processCSV(sectionData, currentStock) {
             
             
                                         let quantity = stockLevelValue - (currentStock?.[itemid] || 0);
+                                        if(itemFromdb.sku == '90503'){
+                                            console.log(sectionData.stockHeader.toLowerCase())
+                                            console.log(row)
+                                            console.log(currentStock?.[itemid])
+                                            console.log(stockLevelValue)
+                                            console.log({
+                                                ...itemFromdb,
+                                                itemId: itemid,
+                                                quantity
+                                            })
+                                        }
                                         if (quantity != 0) {
                                             stockUpdate.items.push({
                                                 ...itemFromdb,
