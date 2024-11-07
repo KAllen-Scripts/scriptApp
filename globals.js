@@ -59,12 +59,7 @@ async function getItems(property, values) {
 }
 
 async function upsertItemProperty(itemId, propertyName, propertyValue) {
-    // try {
-        await ipcRenderer.invoke('upsert-item-property', itemId, propertyName, propertyValue);
-    // } catch (error) {
-    //     console.error('Error upserting item property:', error);
-    //     throw error;
-    // }
+    await ipcRenderer.invoke('upsert-item-property', itemId, propertyName, propertyValue);
 }
 
 async function upsertItemCost(itemCostEntries) {

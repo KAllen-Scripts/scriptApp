@@ -17,19 +17,20 @@ async function processCSV(sectionData, currentStock) {
                 transformHeader: (header) => header.toLowerCase(),
                 complete: async (results) => {
                     try {
-                        let itemBatch = []
+                        let itemBatch = {}
                         for (const row of results.data) {
 
-                            itemBatch.push(row[sectionData.supplierIdentifier.toLowerCase()])
-                            if (itemBatch.length >= 200){
-                                let itemsFromdb = await getItems(sectionData.stoklyIdentifier, itemBatch)
+                            itemBatch[row[sectionData.supplierIdentifier.toLowerCase()]] = row
+                            if (Object.keys(itemBatch).length >= 200){
+                                let itemsFromdb = await getItems(sectionData.stoklyIdentifier, Object.keys(itemBatch))
                                 for(const itemFromdb of itemsFromdb){
+                                    let itemRow = itemBatch[itemFromdb[sectionData.stoklyIdentifier.toLowerCase()]]
                                     if(!sectionStatus[sectionData.sectionId].active){continue}
                                     let itemid = itemFromdb?.itemid;
                                     if (!itemid){continue}
         
                                     if(sectionData.stockHeader.trim() != ''){
-                                        let stockLevel = row[sectionData.stockHeader.toLowerCase()].toLowerCase();
+                                        let stockLevel = itemRow[sectionData.stockHeader.toLowerCase()].toLowerCase();
         
                                         let stockLevelValue
                                         if (sectionData.stockDict[stockLevel] != undefined){
@@ -39,18 +40,7 @@ async function processCSV(sectionData, currentStock) {
                                         }
             
             
-                                        let quantity = stockLevelValue - (currentStock?.[itemid] || 0);
-                                        if(itemFromdb.sku == '90503'){
-                                            console.log(sectionData.stockHeader.toLowerCase())
-                                            console.log(row)
-                                            console.log(currentStock?.[itemid])
-                                            console.log(stockLevelValue)
-                                            console.log({
-                                                ...itemFromdb,
-                                                itemId: itemid,
-                                                quantity
-                                            })
-                                        }
+                                        let quantity = parseInt((stockLevelValue || 0)) - parseInt((currentStock?.[itemid] || 0));
                                         if (quantity != 0) {
                                             stockUpdate.items.push({
                                                 ...itemFromdb,
@@ -73,7 +63,7 @@ async function processCSV(sectionData, currentStock) {
                                         delete currentStock[itemid]
                                     }
         
-                                    let attributeUpdate = updateAttributes(sectionData, row, itemFromdb)
+                                    let attributeUpdate = updateAttributes(sectionData, itemRow, itemFromdb)
                                     if(attributeUpdate){attributeUpdateArr.push(attributeUpdate)}
         
                                     if (attributeUpdateArr.length >= 50) {
@@ -81,7 +71,7 @@ async function processCSV(sectionData, currentStock) {
                                         attributeUpdateArr = []
                                     }
                                 }
-                                itemBatch = []
+                                itemBatch = {}
                             }
                         }
 
