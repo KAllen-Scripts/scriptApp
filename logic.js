@@ -88,7 +88,7 @@ async function startSyncForSection(section) {
         activateButton.classList.remove('inactive');
         logDelete(section.dataset.id)
     } catch (error) {
-        ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id, section.querySelector('.section-label-input').value);
+        ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id, section.querySelector('.section-label-input').value, accountKey, error);
         console.error('Error in startSyncForSection:', error);
         let activateButton = section.querySelector('.activate-button')
         activateButton.textContent = 'Deactivate'
@@ -148,14 +148,14 @@ async function processData(sectionData) {
                    headers: {
                        'Authorization': `Basic ` + btoa(`${sectionData.userName}:${sectionData.password}`)
                    }
-               }).then(r => {
-                   sectionData.csvData = r.data
+               }).then(async r => {
+                   sectionData.csvData = await processFile(r.data)
                });
            } else if(sectionStatus[sectionData.sectionId].inputMode == 'upload') {
-               sectionData.csvData = fs.readFileSync(sectionData.filepath, 'utf8');
+               sectionData.csvData = await processFile(fs.readFileSync(sectionData.filepath, 'utf8'))
            } else {
-               sectionData.csvData = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password).then(r=>{
-                   return r
+               sectionData.csvData = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password).then(async r=>{
+                   return processFile(r)
                })
            }
            return true
@@ -193,26 +193,33 @@ async function processData(sectionData) {
 
 async function updateItems(sectionData) {
     try {
-        let itemsToUpdate = []
+        let itemsToUpdate = {}
         itemsBeingUpdated = true;
         let lastUpdate = await loadData('lastUpdate');
         let updateTimeStamp = new Date().toISOString();
 
         await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
-            itemsToUpdate.push(item.itemId)
-            const lowerCaseKeysObj = Object.fromEntries(Object.entries(item).map(([k, v]) => [k.toLowerCase(), v]));
-            for (const att in lowerCaseKeysObj){
-                await upsertItemProperty(lowerCaseKeysObj.itemid, att.toLowerCase(), lowerCaseKeysObj[att.toLowerCase()]);
-            }
+            itemsToUpdate[item.itemId] = item
         })
 
         await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
-            await upsertItemProperty(attribute.itemId, attribute.itemAttributeName, attribute.value);
+            if(itemsToUpdate[attribute.itemId] == undefined){
+                await requester('get', `https://${enviroment}/v0/items?filter=[itemId]=={${attribute.itemId}}`).then(r=>{
+                    itemsToUpdate[r.data[0].itemId] = r.data[0]
+                })
+            }
+            itemsToUpdate[attribute.itemId][attribute.itemAttributeName] = attribute.value;
         });
 
-        for (let i = 0; i < itemsToUpdate.length; i += 200) {
-            const batch = itemsToUpdate.slice(i, i + 200);
+        for (let i = 0; i < Object.keys(itemsToUpdate).length; i += 200) {
+            const batch = Object.keys(itemsToUpdate).slice(i, i + 200);
             let itemsToUpdateCosts = {}
+
+            let updateBatch = []
+            for(const i of batch){
+                updateBatch.push(itemsToUpdate[i])
+            }
+            await upsertItem(updateBatch)
             
             await loopThrough(`https://${enviroment}/v0/units-of-measure`, 'size=1000&sortDirection=ASC&sortField=supplierSku', `[itemId]=*{${batch.join(',')}}`, async (UOM) => {
                 if(itemsToUpdateCosts[UOM.itemId] == undefined){itemsToUpdateCosts[UOM.itemId] = []}
@@ -240,24 +247,33 @@ async function updateItems(sectionData) {
 }
 
 async function processFile(fileData) {
-    // Check if the file matches the ZIP format using magic bytes
-    const fileHeader = Array.from(fileData.slice(0, 4));
-    const isZipFile = findMatch(fileHeader).some(match => match.mime === "application/zip");
+    const zip = new JSZip();
 
-    if (isZipFile) {
-        // Load and unzip the file using JSZip
-        const zip = await JSZip.loadAsync(fileData);
+    // Check if the data is a zip by attempting to load it
+    try {
+        const loadedZip = await zip.loadAsync(fileData);
+        
+        // Find the first directory in the zip file
+        for (const relativePath in loadedZip.files) {
+            const entry = loadedZip.files[relativePath];
+            if (entry.dir) {
+                // Get all files within the first directory
+                const firstFolderFiles = Object.values(loadedZip.files).filter(file => 
+                    file.name.startsWith(relativePath) && !file.dir
+                );
 
-        // Assuming there's only one file in the zip, grab the first entry
-        const zipEntries = Object.keys(zip.files);
-        if (zipEntries.length === 0) {
-            throw new Error("The ZIP file is empty");
+                // Extract and return the contents of the first folder as an object
+                const folderContents = {};
+                for (const file of firstFolderFiles) {
+                    folderContents[file.name] = await file.async("nodebuffer"); // return as Buffer
+                }
+                return folderContents;
+            }
         }
 
-        // Read the content of the first file in the ZIP
-        return await zip.files[zipEntries[0]].async("string");
-    } else {
-        // Return the file data as-is if it’s not a ZIP file
-        return fileData.toString();
+        throw new Error("No folders found inside the zip file.");
+    } catch (e) {
+        // If fileData is not a zip, loadAsync will throw an error, so we return the original data
+        return fileData;
     }
 }

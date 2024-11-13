@@ -19,61 +19,13 @@ async function processCSV(sectionData, currentStock) {
                     try {
                         let itemBatch = {}
                         for (const row of results.data) {
-
-                            itemBatch[row[sectionData.supplierIdentifier.toLowerCase()]] = row
+                            itemBatch[row[sectionData.supplierIdentifier.toLowerCase()].toLowerCase()] = row
                             if (Object.keys(itemBatch).length >= 200){
-                                let itemsFromdb = await getItems(sectionData.stoklyIdentifier, Object.keys(itemBatch))
-                                for(const itemFromdb of itemsFromdb){
-                                    let itemRow = itemBatch[itemFromdb[sectionData.stoklyIdentifier.toLowerCase()]]
-                                    if(!sectionStatus[sectionData.sectionId].active){continue}
-                                    let itemid = itemFromdb?.itemid;
-                                    if (!itemid){continue}
-        
-                                    if(sectionData.stockHeader.trim() != ''){
-                                        let stockLevel = itemRow[sectionData.stockHeader.toLowerCase()].toLowerCase();
-        
-                                        let stockLevelValue
-                                        if (sectionData.stockDict[stockLevel] != undefined){
-                                            stockLevelValue = sectionData.stockDict[stockLevel]
-                                        } else {
-                                            stockLevelValue = stockLevel
-                                        }
-            
-            
-                                        let quantity = parseInt((stockLevelValue || 0)) - parseInt((currentStock?.[itemid] || 0));
-                                        if (quantity != 0) {
-                                            stockUpdate.items.push({
-                                                ...itemFromdb,
-                                                itemId: itemid,
-                                                quantity
-                                            });
-                                        }
-            
-                                        if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
-                                            try{
-                                                await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
-                                                itemInventoryUpdated(stockUpdate.items, sectionData.sectionId)
-                                            } catch {
-                                                itemInventoryUpdatedFailed(stockUpdate.items, sectionData.sectionId)
-                                            }
-        
-                                            stockUpdate.items = [];
-                                        }
-            
-                                        delete currentStock[itemid]
-                                    }
-        
-                                    let attributeUpdate = updateAttributes(sectionData, itemRow, itemFromdb)
-                                    if(attributeUpdate){attributeUpdateArr.push(attributeUpdate)}
-        
-                                    if (attributeUpdateArr.length >= 50) {
-                                        await Promise.all(attributeUpdateArr);
-                                        attributeUpdateArr = []
-                                    }
-                                }
+                                await processBatch(itemBatch)
                                 itemBatch = {}
                             }
                         }
+                        await processBatch(itemBatch)
 
                         resolve();
                     } catch (error) {
@@ -82,6 +34,63 @@ async function processCSV(sectionData, currentStock) {
                 }
             });
         });
+
+        async function processBatch(itemBatch){
+            let failedStockUpdates = []
+            let itemsFromdb = await getItems(sectionData.stoklyIdentifier.toLowerCase(), Object.keys(itemBatch))
+            for(const itemFromdb of itemsFromdb){
+                let itemRow = itemBatch[itemFromdb[sectionData.stoklyIdentifier.toLowerCase()].toLowerCase()]
+                if(!sectionStatus[sectionData.sectionId].active){continue}
+                let itemid = itemFromdb?.itemid;
+                if (!itemid){continue}
+                
+                if(sectionData.stockHeader.trim() != ''){
+                    let stockLevel = itemRow[sectionData.stockHeader.toLowerCase()].toLowerCase();
+
+                    let stockLevelValue
+                    if (sectionData.stockDict[stockLevel] != undefined){
+                        stockLevelValue = sectionData.stockDict[stockLevel]
+                    } else {
+                        stockLevelValue = stockLevel
+                    }
+                    let quantity = parseInt((stockLevelValue || 0)) - parseInt((currentStock?.[itemid] || 0));
+                    if(isNaN(quantity)){
+                        failedStockUpdates.push({...itemFromdb})
+                    } else {
+                        if (quantity != 0) {
+                            stockUpdate.items.push({
+                                ...itemFromdb,
+                                itemId: itemid,
+                                quantity
+                            });
+                        }
+                    }
+
+                    if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
+                        try{
+                            // await rateLimitedFunction(3)
+                            await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
+                            itemInventoryUpdated(stockUpdate.items, sectionData.sectionId)
+                        } catch {
+                            itemInventoryUpdatedFailed(stockUpdate.items, sectionData.sectionId)
+                        }
+
+                        stockUpdate.items = [];
+                    }
+
+                    delete currentStock[itemid]
+                }
+
+                let attributeUpdate = updateAttributes(sectionData, itemRow, itemFromdb)
+                if(attributeUpdate){attributeUpdateArr.push(attributeUpdate)}
+
+                if (attributeUpdateArr.length >= 50) {
+                    await Promise.all(attributeUpdateArr);
+                    attributeUpdateArr = []
+                }
+            }
+            itemInventoryUpdatedFailed(failedStockUpdates, sectionData.sectionId)
+        }
 
         await parsePromise;
 
@@ -95,6 +104,7 @@ async function processCSV(sectionData, currentStock) {
                 }
                 if (stockUpdate.items.length >= 200 && sectionStatus[sectionData.sectionId].active) {
                     try{
+                        // await rateLimitedFunction(3)
                         await requester('post', `https://${enviroment}/v1/adjustments`, stockUpdate);
                         itemInventorySetToZero(stockUpdate.items, sectionData.sectionId)
                     } catch {

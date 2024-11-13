@@ -1,7 +1,7 @@
 let sectionStatus = {};
 // require('dotenv').config();
 const axios = require('axios');
-// const JSZip = require("jszip");
+const JSZip = require("jszip");
 const { findMatch } = require("magic-bytes.js");
 const { ipcRenderer } = require('electron');
 const fs = require('fs');
@@ -11,9 +11,9 @@ const ftp = require('ftp');
 const { Writable } = require('stream');
 const crypto = require('crypto');
 const enviroment = 'api.stok.ly';
-const accountKey = 'dyproaudio'
-const clientId = '68f9s3e1kl5aaaqfvngg98k7kk'
-const secretKey = '7gan52o0fg3e28ifacr1jutq4oo0g55k51j033mptbq17os5b8t'
+const accountKey = 'accessmodels'
+const clientId = '584gjbgku0qbt2e5selgshi32u'
+const secretKey = '1g51sacef5b0ktaj25hkaafh5dqvr4moepqbrpholl5gtc7eua1v'
 
 const tokensOverMinute = 600;
 const maxTokensToHold = 3;
@@ -58,8 +58,8 @@ async function getItems(property, values) {
     // }
 }
 
-async function upsertItemProperty(itemId, propertyName, propertyValue) {
-    await ipcRenderer.invoke('upsert-item-property', itemId, propertyName, propertyValue);
+async function upsertItem(items) {
+    await ipcRenderer.invoke('upsert-items', items);
 }
 
 async function upsertItemCost(itemCostEntries) {
@@ -179,4 +179,37 @@ function saveFormData() {
 async function resetUpdateFlag(){
     saveData({ lastUpdate: false });
     ipcRenderer.send('delete-all-databases')
+}
+
+
+
+
+//Temp to track number of adjustments made
+// Global variable to store the timestamps of calls
+let callTimestamps = [];
+
+// Function definition
+function rateLimitedFunction(x = 3) {
+  const now = Date.now(); // Current time in milliseconds
+  const oneMinute = 60000; // One minute in milliseconds
+
+  // Remove timestamps older than one minute from the array
+  callTimestamps = callTimestamps.filter(timestamp => now - timestamp < oneMinute);
+
+  // Check if the number of recent calls is less than x
+  if (callTimestamps.length < x) {
+    callTimestamps.push(now); // Log this call's timestamp
+    return; // Proceed immediately if under the limit
+  }
+
+  // Otherwise, calculate the time to wait based on the oldest call in memory
+  const waitTime = oneMinute - (now - callTimestamps[0]);
+
+  return new Promise(resolve => {
+    setTimeout(() => {
+      // Reset the call history after waiting
+      callTimestamps = [Date.now()];
+      resolve();
+    }, waitTime);
+  });
 }
