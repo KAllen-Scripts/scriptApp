@@ -1,6 +1,6 @@
 let itemsBeingUpdated = false;
 
-async function startSyncForSection(section) {
+async function startSyncForSection(section, retry=1) {
     try {
         logStart(section.dataset.id)
         let activateButton = section.querySelector('.activate-button')
@@ -88,6 +88,11 @@ async function startSyncForSection(section) {
         activateButton.classList.remove('inactive');
         logDelete(section.dataset.id)
     } catch (error) {
+        // if(retry == 1){
+        //     await resetUpdateFlag()
+        //     await startSyncForSection(section, 0).catch(e=>{console.error('Error in startSyncForSection:', e)})
+        //     return
+        // }
         ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id, section.querySelector('.section-label-input').value, accountKey, error);
         console.error('Error in startSyncForSection:', error);
         let activateButton = section.querySelector('.activate-button')
@@ -140,29 +145,32 @@ async function processData(sectionData) {
 
     promiseArr.push((async ()=>{
         try{
+            let file
             if (sectionStatus[sectionData.sectionId].inputMode == 'url') {
                 await axios({
                    method: 'get',
                    maxBodyLength: Infinity,
                    url: sectionData.url,
+                   responseType: 'arraybuffer',
                    headers: {
                        'Authorization': `Basic ` + btoa(`${sectionData.userName}:${sectionData.password}`)
                    }
-               }).then(async r => {
-                   sectionData.csvData = await processFile(r.data)
+               }).then(r => {
+                    file = r.data
                });
            } else if(sectionStatus[sectionData.sectionId].inputMode == 'upload') {
-               sectionData.csvData = await processFile(fs.readFileSync(sectionData.filepath, 'utf8'))
+               file = fs.readFileSync(sectionData.filepath, 'utf8')
            } else {
-               sectionData.csvData = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password).then(async r=>{
-                   return processFile(r)
-               })
+               file = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password)
            }
+           sectionData.csvData = await processFile(file)
+           console.log(sectionData.csvData)
            return true
         } catch (error) {
             return error;
         }
     })())
+
 
     promiseArr.push((async()=>{
         try{
@@ -246,34 +254,19 @@ async function updateItems(sectionData) {
     }
 }
 
-async function processFile(fileData) {
-    const zip = new JSZip();
 
-    // Check if the data is a zip by attempting to load it
+async function processFile(file) {
     try {
-        const loadedZip = await zip.loadAsync(fileData);
-        
-        // Find the first directory in the zip file
-        for (const relativePath in loadedZip.files) {
-            const entry = loadedZip.files[relativePath];
-            if (entry.dir) {
-                // Get all files within the first directory
-                const firstFolderFiles = Object.values(loadedZip.files).filter(file => 
-                    file.name.startsWith(relativePath) && !file.dir
-                );
+        // Try to parse the file as an Excel workbook
+        const workbook = xlsx.read(file, { type: 'buffer' });
 
-                // Extract and return the contents of the first folder as an object
-                const folderContents = {};
-                for (const file of firstFolderFiles) {
-                    folderContents[file.name] = await file.async("nodebuffer"); // return as Buffer
-                }
-                return folderContents;
-            }
-        }
+        // Convert the first sheet to CSV (or perform other processing as needed)
+        const sheetName = workbook.SheetNames[0];
+        const csvData = xlsx.utils.sheet_to_csv(workbook.Sheets[sheetName]);
 
-        throw new Error("No folders found inside the zip file.");
-    } catch (e) {
-        // If fileData is not a zip, loadAsync will throw an error, so we return the original data
-        return fileData;
+        return csvData; // Return processed CSV data
+    } catch (error) {
+        console.error('Error processing the file:', error);
     }
+    return file
 }

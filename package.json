@@ -1,6 +1,6 @@
 {
   "name": "Stokly-Sync",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -23,6 +23,7 @@
     "better-sqlite3": "^11.1.2",
     "dotenv": "^16.4.5",
     "electron-store": "^8.2.0",
+    "exceljs": "^4.4.0",
     "file-type": "^19.6.0",
     "fs-extra": "^11.2.0",
     "ftp": "^0.3.10",
@@ -32,7 +33,8 @@
     "node-schedule": "^2.1.1",
     "nodemailer": "^6.9.15",
     "papaparse": "^5.4.1",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "xlsx": "^0.18.5"
   },
   "build": {
     "asar": true,

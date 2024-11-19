@@ -279,15 +279,6 @@ function createWindow() {
     //     console.error('Error setting up databases:', error);
     // }
 
-    ipcMain.on('save-page', (event, pageContent) => {
-        store.set('savedPage', pageContent); // Save the content under a variable
-    });
-    
-    // Function to load the saved page
-    ipcMain.handle('load-page', (event) => {
-        return store.get('savedPage'); // Return the saved page content
-    });
-
     function deleteAllDatabases() {
         try {
             // Close the databases if they are open
@@ -330,12 +321,12 @@ function createWindow() {
     }
     
     // IPC handler for deleting all databases
-    ipcMain.on('delete-all-databases', (event) => {
+    ipcMain.handle('delete-all-databases', async () => {
         try {
             deleteAllDatabases();
-            event.sender.send('delete-all-databases-success');
+            return 'success';
         } catch (error) {
-            event.sender.send('delete-all-databases-failed', error.message);
+            throw new Error(error.message || 'Failed to delete databases');
         }
     });
 
