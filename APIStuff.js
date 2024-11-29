@@ -70,12 +70,12 @@ async function requester(method, url, data, retry = 3) {
     return response;
 }
 
-async function loopThrough(url, params, filter, callBack) {
+async function loopThrough(url, size, params, filter, callBack) {
     let total;
     let page = 0;
     let count = 0;
     do {
-        let res = await requester('get', `${url}?${params}&page=${page}&filter=${filter}`);
+        let res = await requester('get', `${url}?size=${size}&${params}&page=${page}&filter=${filter}`);
         total = res.metadata.count;
 
         var length = res.data.length;
@@ -84,7 +84,8 @@ async function loopThrough(url, params, filter, callBack) {
             await callBack(item);
             count += 1;
         }
-    } while (length > 0);
+        console.log(length, total)
+    } while (length >= size);
 }
 
 document.addEventListener('DOMContentLoaded', function() {

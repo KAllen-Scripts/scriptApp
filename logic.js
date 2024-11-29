@@ -119,7 +119,7 @@ async function processData(sectionData) {
                 const binResponse = await requester('get', `https://${enviroment}/v0/locations/${sectionData.locationId}/bins?filter=[name]=={${sectionData.bin}}`);
                 sectionData.binId = binResponse.data[0].binId;
     
-                await loopThrough(`https://${enviroment}/v1/inventory-records`, 'size=1000&sortDirection=ASC&sortField=itemId', `[locationId]=={${sectionData.locationId}}%26%26([onHand]!={0}||[quarantined]!={0})%26%26[binId]=={${sectionData.binId}}`, (record) => {
+                await loopThrough(`https://${enviroment}/v1/inventory-records`, 1000, 'sortDirection=ASC&sortField=itemId', `[locationId]=={${sectionData.locationId}}%26%26([onHand]!={0}||[quarantined]!={0})%26%26[binId]=={${sectionData.binId}}`, (record) => {
                         currentStock[record.itemId] = record.onHand;
                 });
     
@@ -134,7 +134,7 @@ async function processData(sectionData) {
     sectionData.attributes = {}
     promiseArr.push((async()=>{
         try{
-            await loopThrough(`https://${enviroment}/v0/item-attributes`, 'size=1000&sortDirection=ASC&sortField=name', `[status]!={1}%26%26[name]=*{${[...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier].join(',')}}`, (attribute) => {
+            await loopThrough(`https://${enviroment}/v0/item-attributes`, 1000, 'sortDirection=ASC&sortField=name', `[status]!={1}%26%26[name]=*{${[...Object.keys(sectionData.attDict), sectionData.stoklyIdentifier].join(',')}}`, (attribute) => {
                 sectionData.attributes[attribute.name.toLowerCase()] = attribute;
             })
             return true
@@ -217,11 +217,11 @@ async function updateItems(sectionData) {
         let lastUpdate = await loadData('lastUpdate');
         let updateTimeStamp = new Date().toISOString();
 
-        await loopThrough(`https://${enviroment}/v0/items`, 'size=1000&sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
+        await loopThrough(`https://${enviroment}/v0/items`, 1000, 'sortDirection=ASC&sortField=timeCreated', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (item) => {
             itemsToUpdate[item.itemId] = item
         })
 
-        await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 'size=1000&sortField=timeUpdated&sortDirection=ASC', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
+        await loopThrough(`https://${enviroment}/v0/item-attribute-values`, 1000, 'sortField=timeUpdated&sortDirection=ASC', `[status]!={1}${lastUpdate ? `%26%26[timeUpdated]>>{${lastUpdate}}` : ''}`, async (attribute) => {
             if(itemsToUpdate[attribute.itemId] == undefined){
                 await requester('get', `https://${enviroment}/v0/items?filter=[itemId]=={${attribute.itemId}}`).then(r=>{
                     itemsToUpdate[r.data[0].itemId] = r.data[0]
@@ -240,7 +240,7 @@ async function updateItems(sectionData) {
             }
             await upsertItem(updateBatch)
             
-            await loopThrough(`https://${enviroment}/v0/units-of-measure`, 'size=1000&sortDirection=ASC&sortField=supplierSku', `[itemId]=*{${batch.join(',')}}`, async (UOM) => {
+            await loopThrough(`https://${enviroment}/v0/units-of-measure`, 1000, 'sortDirection=ASC&sortField=supplierSku', `[itemId]=*{${batch.join(',')}}`, async (UOM) => {
                 if(itemsToUpdateCosts[UOM.itemId] == undefined){itemsToUpdateCosts[UOM.itemId] = []}
                 itemsToUpdateCosts[UOM.itemId].push({
                     itemId:UOM.itemId,
