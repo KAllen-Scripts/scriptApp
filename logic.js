@@ -143,32 +143,44 @@ async function processData(sectionData) {
         }
     })())
 
-    promiseArr.push((async ()=>{
-        try{
-            let file
+    promiseArr.push((async () => {
+        try {
+            let isWorkbook
+            let file;
             if (sectionStatus[sectionData.sectionId].inputMode == 'url') {
+                // Set responseType to 'blob' which handles both text and binary data
                 await axios({
-                   method: 'get',
-                   maxBodyLength: Infinity,
-                   url: sectionData.url,
-                   responseType: 'arraybuffer',
-                   headers: {
-                       'Authorization': `Basic ` + btoa(`${sectionData.userName}:${sectionData.password}`)
-                   }
-               }).then(r => {
-                    file = r.data
-               });
-           } else if(sectionStatus[sectionData.sectionId].inputMode == 'upload') {
-               file = fs.readFileSync(sectionData.filepath, 'utf8')
-           } else {
-               file = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password)
-           }
-           sectionData.csvData = await processFile(file)
-           return true
+                    method: 'get',
+                    maxBodyLength: Infinity,
+                    url: sectionData.url,
+                    responseType: 'blob',  // Let axios decide how to handle the response
+                    headers: {
+                        'Authorization': `Basic ` + btoa(`${sectionData.userName}:${sectionData.password}`)
+                    }
+                }).then(r => {
+                    // Handle the data depending on the content type or format
+                    if (r.headers['content-type'].includes('text/csv')) {
+                        // If it's a CSV, treat it as text
+                        file = r.data.text();  // Convert the blob to text
+                        sectionData.csvData = file;
+                    } else {
+                        // If it's binary (e.g., an Excel file), handle it as binary
+                        file = r.data;  // Blob is binary data, no conversion needed for binary files
+                        isWorkbook = true
+                    }
+                });
+            } else if (sectionStatus[sectionData.sectionId].inputMode == 'upload') {
+                file = fs.readFileSync(sectionData.filepath, 'utf8');
+            } else {
+                file = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password);
+            }
+            sectionData.csvData = await processFile(file);
+    
+            return true;
         } catch (error) {
             return error;
         }
-    })())
+    })());
 
 
     promiseArr.push((async()=>{
@@ -253,21 +265,8 @@ async function updateItems(sectionData) {
     }
 }
 
-
-function isCSV(data) {
-    // A simple check for CSV: look for newline characters and commas, indicating CSV formatting
-    const content = data.toString();
-    return content.includes(",") && (content.includes("\n") || content.includes("\r"));
-}
-
 async function processFile(file) {
     try {
-        // First, check if it's a CSV based on content
-        if (isCSV(file)) {
-            // Return the file as it is if it's a CSV (no further processing needed)
-            return file.toString();
-        }
-
         // If it's not CSV, attempt to parse it as an Excel workbook
         const workbook = xlsx.read(file, { type: 'buffer', WTF: false });
 
