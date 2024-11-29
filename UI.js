@@ -109,8 +109,6 @@ function createSection(sectionData = {}) {
 
     if (sectionData.attributes && sectionData.attributes.length > 0) {
         sectionData.attributes.forEach(attr => addAttributeGroup(attr.name, attr.header));
-    } else {
-        addAttributeGroup();
     }
 
     const addAttributeButton = document.createElement('button');
@@ -175,8 +173,6 @@ function createSection(sectionData = {}) {
 
     if (sectionData.stockLevels && sectionData.stockLevels.length > 0) {
         sectionData.stockLevels.forEach(level => addStockLevelGroup(level.name, level.quantity));
-    } else {
-        addStockLevelGroup();
     }
 
     const addStockLevelButton = document.createElement('button');
@@ -376,7 +372,7 @@ function scheduleJobs(sectionId, scheduleInputs, sectionWrapper) {
 document.addEventListener('DOMContentLoaded', async function() {
     let form = await loadData('savedData').then(r=>{
         if(r){
-            return JSON.parse(r)}
+            return saveDataDebug || JSON.parse(r)}
         }
     )
     if (form){

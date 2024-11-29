@@ -1,6 +1,6 @@
 let itemsBeingUpdated = false;
 
-async function startSyncForSection(section, retry=1) {
+async function startSyncForSection(section, retry=2) {
     try {
         logStart(section.dataset.id)
         let activateButton = section.querySelector('.activate-button')
@@ -88,11 +88,11 @@ async function startSyncForSection(section, retry=1) {
         activateButton.classList.remove('inactive');
         logDelete(section.dataset.id)
     } catch (error) {
-        // if(retry == 1){
-        //     await resetUpdateFlag()
-        //     await startSyncForSection(section, 0).catch(e=>{console.error('Error in startSyncForSection:', e)})
-        //     return
-        // }
+        if(retry == 1){
+            await resetUpdateFlag()
+            await startSyncForSection(section, 0).catch(e=>{console.error('Error in startSyncForSection:', e)})
+            return
+        }
         ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id, section.querySelector('.section-label-input').value, accountKey, error);
         console.error('Error in startSyncForSection:', error);
         let activateButton = section.querySelector('.activate-button')
@@ -164,7 +164,6 @@ async function processData(sectionData) {
                file = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password)
            }
            sectionData.csvData = await processFile(file)
-           console.log(sectionData.csvData)
            return true
         } catch (error) {
             return error;
@@ -255,18 +254,36 @@ async function updateItems(sectionData) {
 }
 
 
+function isCSV(data) {
+    // A simple check for CSV: look for newline characters and commas, indicating CSV formatting
+    const content = data.toString();
+    return content.includes(",") && (content.includes("\n") || content.includes("\r"));
+}
+
 async function processFile(file) {
     try {
-        // Try to parse the file as an Excel workbook
-        const workbook = xlsx.read(file, { type: 'buffer' });
+        // First, check if it's a CSV based on content
+        if (isCSV(file)) {
+            // Return the file as it is if it's a CSV (no further processing needed)
+            return file.toString();
+        }
 
-        // Convert the first sheet to CSV (or perform other processing as needed)
-        const sheetName = workbook.SheetNames[0];
-        const csvData = xlsx.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+        // If it's not CSV, attempt to parse it as an Excel workbook
+        const workbook = xlsx.read(file, { type: 'buffer', WTF: false });
 
-        return csvData; // Return processed CSV data
+        // Check if the workbook has any sheets
+        if (workbook.SheetNames && workbook.SheetNames.length > 0) {
+            // Convert the first sheet to CSV
+            const sheetName = workbook.SheetNames[0];
+            const csvData = xlsx.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+            return csvData; // Return processed CSV data
+        } else {
+            console.error("Workbook does not contain any sheets.");
+        }
     } catch (error) {
-        console.error('Error processing the file:', error);
+        console.error("Error parsing the file:", error);
     }
-    return file
+
+    // If it's neither a valid workbook nor a CSV, return the original data
+    return file;
 }
