@@ -145,37 +145,32 @@ async function processData(sectionData) {
 
     promiseArr.push((async () => {
         try {
-            let isWorkbook
+            let isWorkbook = sectionStatus[sectionData.sectionId].workbook == 'Workbook' ? true : false;
             let file;
             if (sectionStatus[sectionData.sectionId].inputMode == 'url') {
-                // Set responseType to 'blob' which handles both text and binary data
-                await axios({
+                let requestBody = {
                     method: 'get',
                     maxBodyLength: Infinity,
                     url: sectionData.url,
-                    responseType: 'blob',  // Let axios decide how to handle the response
                     headers: {
                         'Authorization': `Basic ` + btoa(`${sectionData.userName}:${sectionData.password}`)
                     }
-                }).then(r => {
-                    // Handle the data depending on the content type or format
-                    if (r.headers['content-type'].includes('text/csv')) {
-                        // If it's a CSV, treat it as text
-                        file = r.data.text();  // Convert the blob to text
-                        sectionData.csvData = file;
-                    } else {
-                        // If it's binary (e.g., an Excel file), handle it as binary
-                        file = r.data;  // Blob is binary data, no conversion needed for binary files
-                        isWorkbook = true
-                    }
+                }
+                if (isWorkbook){
+                    requestBody.responseType = 'arraybuffer'
+                }
+                await axios(requestBody).then(r => {
+                    sectionData.csvData = r.data
+                    file = r.data
                 });
             } else if (sectionStatus[sectionData.sectionId].inputMode == 'upload') {
-                file = fs.readFileSync(sectionData.filepath, 'utf8');
+                sectionData.csvData = fs.readFileSync(sectionData.filepath, 'utf8');
             } else {
                 file = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password);
             }
-            sectionData.csvData = await processFile(file);
-    
+            if (isWorkbook){
+                sectionData.csvData = await processFile(file);
+            }
             return true;
         } catch (error) {
             return error;

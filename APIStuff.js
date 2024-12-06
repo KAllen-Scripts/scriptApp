@@ -84,7 +84,6 @@ async function loopThrough(url, size, params, filter, callBack) {
             await callBack(item);
             count += 1;
         }
-        console.log(length, total)
     } while (length >= size);
 }
 

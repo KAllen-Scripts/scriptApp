@@ -8,7 +8,8 @@ function createSection(sectionData = {}) {
         active: false,
         scheduledJobs: [],
         inputMode: sectionData.inputType || 'url',
-        headers: sectionData.inputMode !== 'Columns'
+        headers: sectionData.inputMode !== 'Columns',
+        workbook: sectionData.fileType
     };
 
     // Create editable label
@@ -248,6 +249,16 @@ function createSection(sectionData = {}) {
         button.textContent = sectionStatus[sectionWrapper.dataset.id].headers ? 'Headers' : 'Columns';
     };
 
+    const workbookToggle = document.createElement('button');
+    workbookToggle.textContent = sectionData.fileType || 'CSV';
+    workbookToggle.classList.add('fileTypeButton');
+    workbookToggle.type = 'button';
+    workbookToggle.onclick = function(event) {
+        const button = event.target;
+        button.textContent = button.textContent == 'Workbook' ? 'CSV' : 'Workbook';
+        sectionStatus[sectionWrapper.dataset.id].workbook = button.textContent
+    };
+
     const delimiterInput = document.createElement('input');
     delimiterInput.type = 'text';
     delimiterInput.className = 'delimiter-input';
@@ -257,6 +268,7 @@ function createSection(sectionData = {}) {
     const toggleContainer = document.createElement('div');
     toggleContainer.className = 'toggle-container';
     toggleContainer.appendChild(columnToggle);
+    toggleContainer.appendChild(workbookToggle);
     toggleContainer.appendChild(delimiterInput);
 
     buttonContainer.appendChild(toggleContainer);

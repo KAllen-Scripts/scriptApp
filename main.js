@@ -67,11 +67,11 @@ function createWindow() {
         let title = `Stock Sync Summary for Supplier ${supplier}`
         let body = ''
         const currentDate = new Date().toISOString().replace(/[:]/g, '-').split('.')[0];
-        let fullLogPath = `${logPath}/${supplier}/${currentDate}.csv`
+        let fullLogPath = `${logPath}/${supplier}/${currentDate}`
         fs.mkdirSync(fullLogPath, { recursive: true });
         for (const csv in CSVs[sectionId]){
             body += `-${csv}: ${CSVs[sectionId][csv].length}\n`
-            saveObjectArrayToCSV(`${fullLogPath}/${csv}`, CSVs[sectionId][csv])
+            saveObjectArrayToCSV(`${fullLogPath}/${csv}.csv`, CSVs[sectionId][csv])
         }
         if(body != ''){
             sendEmailSMTP2GO(email, title, body)

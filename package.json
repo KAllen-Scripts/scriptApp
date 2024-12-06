@@ -1,6 +1,6 @@
 {
   "name": "Stokly-Sync",
-  "version": "1.9.5",
+  "version": "1.9.6",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -21,11 +21,13 @@
   "dependencies": {
     "axios": "^1.6.8",
     "better-sqlite3": "^11.1.2",
+    "chardet": "^2.0.0",
     "dotenv": "^16.4.5",
     "electron-store": "^8.2.0",
     "file-type": "^19.6.0",
     "fs-extra": "^11.2.0",
     "ftp": "^0.3.10",
+    "iconv-lite": "^0.6.3",
     "jszip": "^3.10.1",
     "magic-bytes.js": "^1.10.0",
     "mime": "^4.0.4",
