@@ -79,9 +79,9 @@ function createWindow() {
         CSVs[sectionId] = {}
     });
 
-    ipcMain.on('Section-Failed', (event, logPath, email, sectionId, supplier, accountId, error) => {
+    ipcMain.on('Section-Failed', (event, logPath, email, sectionId, supplier, accountId, error, stackInfo) => {
         sendEmailSMTP2GO(email, `Sync Failed for supplier ${supplier}`, `Sync has failed for supplier ${supplier}: Section ID - ${sectionId}`)
-        sendEmailSMTP2GO('kenny.allenstokly@gmail.com', `Sync Failed for customer  ${accountId} - Section ${sectionId}`, `Data: ${store.get('savedData') || {}}\n\nError: ${error}`)
+        sendEmailSMTP2GO('kenny.allenstokly@gmail.com', `Sync Failed for customer  ${accountId} - Section ${sectionId}`, `Data: ${store.get('savedData') || {}}\n\nError: ${error} (${stackInfo})`)
     });
 
     ipcMain.on('save-data', (event, data) => {

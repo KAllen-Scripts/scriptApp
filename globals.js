@@ -14,9 +14,9 @@ const ftp = require('ftp');
 const { Writable } = require('stream');
 const crypto = require('crypto');
 const enviroment = 'api.stok.ly';
-const accountKey = 'accessmodels'
-const clientId = '584gjbgku0qbt2e5selgshi32u'
-const secretKey = '1g51sacef5b0ktaj25hkaafh5dqvr4moepqbrpholl5gtc7eua1v'
+const accountKey = 'dyproaudio'
+const clientId = '68f9s3e1kl5aaaqfvngg98k7kk'
+const secretKey = '7gan52o0fg3e28ifacr1jutq4oo0g55k51j033mptbq17os5b8t'
 
 const tokensOverMinute = 600;
 const maxTokensToHold = 3;

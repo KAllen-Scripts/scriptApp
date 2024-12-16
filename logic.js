@@ -88,19 +88,37 @@ async function startSyncForSection(section, retry=2) {
         activateButton.classList.remove('inactive');
         logDelete(section.dataset.id)
     } catch (error) {
-        if(retry == 1){
-            await resetUpdateFlag()
-            await startSyncForSection(section, 0).catch(e=>{console.error('Error in startSyncForSection:', e)})
-            return
+        if (retry == 1) {
+            await sleep(300000);
+            await resetUpdateFlag();
+            await startSyncForSection(section, 0).catch(e => {
+                console.error('Error in startSyncForSection:', e);
+            });
+            return;
         }
-        ipcRenderer.send('Section-Failed', document.getElementById('logFilePath').value, document.getElementById('emailAddress').value, section.dataset.id, section.querySelector('.section-label-input').value, accountKey, error);
+        
+        const stack = error.stack || 'No stack trace available';
+        const lineInfo = stack.split('\n')[1]?.trim() || 'Line information unavailable';
+    
+        ipcRenderer.send(
+            'Section-Failed',
+            document.getElementById('logFilePath').value,
+            document.getElementById('emailAddress').value,
+            section.dataset.id,
+            section.querySelector('.section-label-input').value,
+            accountKey,
+            error,
+            lineInfo
+        );
+        
         console.error('Error in startSyncForSection:', error);
-        let activateButton = section.querySelector('.activate-button')
-        activateButton.textContent = 'Deactivate'
+        
+        let activateButton = section.querySelector('.activate-button');
+        activateButton.textContent = 'Deactivate';
         activateButton.classList.add('active');
         activateButton.classList.remove('processing');
         activateButton.classList.remove('inactive');
-        logDelete(section.dataset.id)
+        logDelete(section.dataset.id);
     }
 }
 
