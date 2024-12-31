@@ -35,7 +35,7 @@ async function ensureToken() {
     }
 }
 
-async function requester(method, url, data, retry = 3) {
+async function requester(method, url, data, retry = 20) {
     // Ensure we have a valid token
     await ensureToken();
 
@@ -62,6 +62,7 @@ async function requester(method, url, data, retry = 3) {
                 return new Error(`HTTP error! Status: ${e.response.status}`);
             } else {
                 // Try again with a new token if necessary
+                await (sleep(200))
                 await ensureToken();
                 return requester(method, url, data, retry - 1);
             }
@@ -71,12 +72,10 @@ async function requester(method, url, data, retry = 3) {
 }
 
 async function loopThrough(url, size, params, filter, callBack) {
-    let total;
     let page = 0;
     let count = 0;
     do {
         let res = await requester('get', `${url}?size=${size}&${params}&page=${page}&filter=${filter}`);
-        total = res.metadata.count;
 
         var length = res.data.length;
         page += 1;
@@ -99,51 +98,99 @@ async function replenTokens(){
     } while (true);
 }
 
-function getFileByFTP(ftpInputs, username, password) {
-    address = ftpInputs.address;
-    port = ftpInputs.port;
-    filepath = ftpInputs.filepath;
+function getFileByFTP(protocol, inputs, username, password) {
+    console.log(protocol)
+    const { address, port, filepath } = inputs;
+
     return new Promise((resolve, reject) => {
-      const client = new ftp();
-  
-      client.on('ready', () => {
-        client.get(filepath, (err, stream) => {
-          if (err) {
-            client.end();
-            return reject(err);
-          }
-  
-          let fileData = '';
-          const writableStream = new Writable({
-            write(chunk, encoding, callback) {
-              fileData += chunk.toString();
-              callback();
-            }
-          });
-  
-          stream.pipe(writableStream);
-  
-          stream.on('end', () => {
-            client.end();
-            resolve(fileData);
-          });
-  
-          stream.on('error', (err) => {
-            client.end();
-            reject(err);
-          });
-        });
-      });
-  
-      client.on('error', (err) => {
-        reject(err);
-      });
-  
-      client.connect({
-        host: address,
-        port: port,
-        user: username,
-        password: password
-      });
+        if (protocol === 'ftp') {
+            const client = new ftp();
+
+            client.on('ready', () => {
+                client.get(filepath, (err, stream) => {
+                    if (err) {
+                        client.end();
+                        return reject(err);
+                    }
+
+                    let fileData = '';
+                    const writableStream = new Writable({
+                        write(chunk, encoding, callback) {
+                            fileData += chunk.toString();
+                            callback();
+                        },
+                    });
+
+                    stream.pipe(writableStream);
+
+                    stream.on('end', () => {
+                        client.end();
+                        resolve(fileData);
+                    });
+
+                    stream.on('error', (err) => {
+                        client.end();
+                        reject(err);
+                    });
+                });
+            });
+
+            client.on('error', (err) => {
+                reject(err);
+            });
+
+            client.connect({
+                host: address,
+                port: port,
+                user: username,
+                password: password,
+            });
+        } else if (protocol === 'sftp') {
+            const client = new SFTPClient();
+
+            client
+                .on('ready', () => {
+                    client.sftp((err, sftp) => {
+                        if (err) {
+                            client.end();
+                            return reject(err);
+                        }
+
+                        const readableStream = sftp.createReadStream(filepath);
+                        let fileData = '';
+
+                        const writableStream = new Writable({
+                            write(chunk, encoding, callback) {
+                                fileData += chunk.toString();
+                                callback();
+                            },
+                        });
+
+                        readableStream.pipe(writableStream);
+
+                        readableStream.on('end', () => {
+                            client.end();
+                            resolve(fileData);
+                        });
+
+                        readableStream.on('error', (err) => {
+                            client.end();
+                            reject(err);
+                        });
+                    });
+                })
+                .on('error', (err) => {
+                    reject(err);
+                })
+                .connect({
+                    host: address,
+                    port: port,
+                    username: username,
+                    password: password,
+                });
+        } else {
+            reject(new Error('Unsupported protocol. Use "ftp" or "sftp".'));
+        }
     });
 }
+

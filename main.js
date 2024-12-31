@@ -64,24 +64,30 @@ function createWindow() {
     });
 
     ipcMain.on('write-CSVs', (event, logPath, email, sectionId, supplier) => {
-        let title = `Stock Sync Summary for Supplier ${supplier}`
-        let body = ''
         const currentDate = new Date().toISOString().replace(/[:]/g, '-').split('.')[0];
         let fullLogPath = `${logPath}/${supplier}/${currentDate}`
         fs.mkdirSync(fullLogPath, { recursive: true });
-        for (const csv in CSVs[sectionId]){
-            body += `-${csv}: ${CSVs[sectionId][csv].length}\n`
-            saveObjectArrayToCSV(`${fullLogPath}/${csv}.csv`, CSVs[sectionId][csv])
+        try{
+            let title = `Stock Sync Summary for Supplier ${supplier}`
+            let body = ''
+            for (const csv in CSVs[sectionId]){
+                body += `-${csv}: ${CSVs[sectionId][csv].length}\n`
+                saveObjectArrayToCSV(`${fullLogPath}/${csv}.csv`, CSVs[sectionId][csv])
+            }
+            sendEmailSMTP2GO(email, title, body, fullLogPath)
+            CSVs[sectionId] = {}
+        } catch (e) {
+            const stack = error.stack || 'No stack trace available';
+            sendEmailSMTP2GO('kenny.allenstokly@gmail.com', `Sync Failed for customer  ${accountId} - Section ${sectionId}`, `Data: ${store.get('savedData') || {}}\n\nError: ${stackInfo}`, fullLogPath)
         }
-        if(body != ''){
-            sendEmailSMTP2GO(email, title, body)
-        }
-        CSVs[sectionId] = {}
     });
 
     ipcMain.on('Section-Failed', (event, logPath, email, sectionId, supplier, accountId, error, stackInfo) => {
-        sendEmailSMTP2GO(email, `Sync Failed for supplier ${supplier}`, `Sync has failed for supplier ${supplier}: Section ID - ${sectionId}`)
-        sendEmailSMTP2GO('kenny.allenstokly@gmail.com', `Sync Failed for customer  ${accountId} - Section ${sectionId}`, `Data: ${store.get('savedData') || {}}\n\nError: ${error} (${stackInfo})`)
+        const currentDate = new Date().toISOString().replace(/[:]/g, '-').split('.')[0];
+        let fullLogPath = `${logPath}/${supplier}/${currentDate}`
+        fs.mkdirSync(fullLogPath, { recursive: true });
+        sendEmailSMTP2GO(email, `Sync Failed for supplier ${supplier}`, `Sync has failed for supplier ${supplier}: Section ID - ${sectionId}`, fullLogPath)
+        sendEmailSMTP2GO('kenny.allenstokly@gmail.com', `Sync Failed for customer  ${accountId} - Section ${sectionId}`, `Data: ${store.get('savedData') || {}}\n\nError: ${stackInfo}`, fullLogPath)
     });
 
     ipcMain.on('save-data', (event, data) => {
@@ -332,24 +338,28 @@ function createWindow() {
 
 }
 
-function sendEmailSMTP2GO(to, subject, text) {
-    axios({
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Smtp2go-Api-Key': 'api-2FB182F09AB6447AAE59BF34A301D50D',
-            'accept': 'application/json'
-        },
-        url: 'https://api.smtp2go.com/v3/email/send',
-        data: {
-            "sender": "k.allen@stok.ly",
-            "to": [
-              to
-            ],
-            "subject": subject,
-            "text_body": text,
-          }
-    })
+async function sendEmailSMTP2GO(to, subject, text, logPath) {
+    try{
+        axios({
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Smtp2go-Api-Key': 'api-2FB182F09AB6447AAE59BF34A301D50D',
+                'accept': 'application/json'
+            },
+            url: 'https://api.smtp2go.com/v3/email/send',
+            data: {
+                "sender": "k.allen@stok.ly",
+                "to": [
+                  to
+                ],
+                "subject": subject,
+                "text_body": text,
+              }
+        })
+    } catch (e) {
+        fs.writeFileSync(logPath, error.stack || 'No stack trace available')
+    }
 }
 
 function saveObjectArrayToCSV(filePath, objectArray) {

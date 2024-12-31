@@ -2,6 +2,12 @@ let itemsBeingUpdated = false;
 
 async function startSyncForSection(section, retry=2) {
     try {
+
+        if (section.querySelector('.section-label-input').value.toLowerCase() == 'the hobby company'){
+            await resetUpdateFlag();
+            await sleep(5000);
+        }
+
         logStart(section.dataset.id)
         let activateButton = section.querySelector('.activate-button')
         activateButton.textContent = 'Processing'
@@ -88,10 +94,13 @@ async function startSyncForSection(section, retry=2) {
         activateButton.classList.remove('inactive');
         logDelete(section.dataset.id)
     } catch (error) {
-        if (retry == 1) {
-            await sleep(300000);
+        console.error('Error in startSyncForSection:', error);
+        if (retry > 0) {
+            console.log('Retrying')
+            await sleep(150000);
             await resetUpdateFlag();
-            await startSyncForSection(section, 0).catch(e => {
+            await sleep(150000);
+            await startSyncForSection(section, retry-1).catch(e => {
                 console.error('Error in startSyncForSection:', e);
             });
             return;
@@ -108,7 +117,7 @@ async function startSyncForSection(section, retry=2) {
             section.querySelector('.section-label-input').value,
             accountKey,
             error,
-            lineInfo
+            stack
         );
         
         console.error('Error in startSyncForSection:', error);
@@ -125,8 +134,6 @@ async function startSyncForSection(section, retry=2) {
 async function processData(sectionData) {
     let promiseArr = [];
     let currentStock = {};
-
-
 
     if (sectionData.stockHeader.trim() !== '') {
         promiseArr.push((async () => {
@@ -171,7 +178,8 @@ async function processData(sectionData) {
                     maxBodyLength: Infinity,
                     url: sectionData.url,
                     headers: {
-                        'Authorization': `Basic ` + btoa(`${sectionData.userName}:${sectionData.password}`)
+                        'Authorization': `Basic ` + btoa(`${sectionData.userName}:${sectionData.password}`),
+                        "cache-control": 'no-cache'
                     }
                 }
                 if (isWorkbook){
@@ -184,7 +192,11 @@ async function processData(sectionData) {
             } else if (sectionStatus[sectionData.sectionId].inputMode == 'upload') {
                 sectionData.csvData = fs.readFileSync(sectionData.filepath, 'utf8');
             } else {
-                file = await getFileByFTP(sectionData.ftpInputs, sectionData.userName, sectionData.password);
+                file = await getFileByFTP(sectionStatus[sectionData.sectionId].inputMode, sectionData.ftpInputs, sectionData.userName, sectionData.password);
+                sectionData.csvData = file
+                if (isWorkbook){
+                    sectionData.csvData = await processFile(file);
+                }
             }
             if (isWorkbook){
                 sectionData.csvData = await processFile(file);
@@ -225,6 +237,10 @@ async function processData(sectionData) {
 
 async function updateItems(sectionData) {
     try {
+        while (flagResetting){
+            console.log(flagResetting)
+            await sleep(500)
+        }
         let itemsToUpdate = {}
         itemsBeingUpdated = true;
         let lastUpdate = await loadData('lastUpdate');

@@ -49,6 +49,7 @@ function createSection(sectionData = {}) {
           <option value="url" ${inputMode === 'url' ? 'selected' : ''}>URL</option>
           <option value="upload" ${inputMode === 'upload' ? 'selected' : ''}>Upload</option>
           <option value="ftp" ${inputMode === 'ftp' ? 'selected' : ''}>FTP</option>
+          <option value="sftp" ${inputMode === 'sftp' ? 'selected' : ''}>SFTP</option>
         </select>
       </label>
       <input 
@@ -64,7 +65,7 @@ function createSection(sectionData = {}) {
         accept=".csv" 
         style="display: ${inputMode === 'upload' ? 'block' : 'none'};"
       >
-      <div class="ftp-inputs" style="display: ${inputMode === 'ftp' ? 'block' : 'none'};">
+      <div class="ftp-inputs" style="display: ${(inputMode === 'ftp' || inputMode === 'sftp') ? 'block' : 'none'};">
         <input type="text" class="ftp-address" placeholder="FTP Address" value="${sectionData.ftp?.address || ''}">
         <input type="number" class="ftp-port" placeholder="FTP Port" value="${sectionData.ftp?.port || ''}">
         <input type="text" class="ftp-filepath" placeholder="FTP Filepath" value="${sectionData.ftp?.filepath || ''}">
@@ -297,6 +298,9 @@ function createSection(sectionData = {}) {
             case 'ftp':
                 ftpInputs.style.display = 'block';
                 break;
+            case 'sftp':
+                ftpInputs.style.display = 'block';
+                break;
         }
 
         sectionStatus[sectionWrapper.dataset.id].inputMode = selectedMode;
@@ -394,6 +398,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             createSection(section)
         }
     }
+    dailyReset()
 });
 
 

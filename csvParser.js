@@ -1,5 +1,4 @@
 async function processCSV(sectionData, currentStock) {
-    console.log(sectionData.csvData)
     try {
         let stockUpdate = {
             "locationId": sectionData.locationId,
@@ -20,6 +19,9 @@ async function processCSV(sectionData, currentStock) {
                     try {
                         let itemBatch = {}
                         for (const row of results.data) {
+                            if (row.stockcode == 'EQLED055'){
+                                console.log(row)
+                            }
                             itemBatch[row[sectionData.supplierIdentifier.toLowerCase()].toLowerCase()] = row
                             if (Object.keys(itemBatch).length >= 200){
                                 await processBatch(itemBatch)

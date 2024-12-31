@@ -1,6 +1,6 @@
 {
   "name": "Stokly-Sync",
-  "version": "1.9.7",
+  "version": "2.0.0",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -35,6 +35,7 @@
     "nodemailer": "^6.9.15",
     "papaparse": "^5.4.1",
     "path": "^0.12.7",
+    "ssh2": "^1.16.0",
     "xlsx": "^0.18.5"
   },
   "build": {
