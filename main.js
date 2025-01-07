@@ -82,12 +82,12 @@ function createWindow() {
         }
     });
 
-    ipcMain.on('Section-Failed', (event, logPath, email, sectionId, supplier, accountId, error, stackInfo) => {
+    ipcMain.on('Section-Failed', (event, logPath, email, sectionId, supplier, accountId, error, stackInfo, extraInfo = undefined) => {
         const currentDate = new Date().toISOString().replace(/[:]/g, '-').split('.')[0];
         let fullLogPath = `${logPath}/${supplier}/${currentDate}`
         fs.mkdirSync(fullLogPath, { recursive: true });
         sendEmailSMTP2GO(email, `Sync Failed for supplier ${supplier}`, `Sync has failed for supplier ${supplier}: Section ID - ${sectionId}`, fullLogPath)
-        sendEmailSMTP2GO('kenny.allenstokly@gmail.com', `Sync Failed for customer  ${accountId} - Section ${sectionId}`, `Data: ${store.get('savedData') || {}}\n\nError: ${stackInfo}`, fullLogPath)
+        sendEmailSMTP2GO('kenny.allenstokly@gmail.com', `Sync Failed for customer  ${accountId} - Section ${sectionId}`, `Data: ${store.get('savedData') || {}}\n\nError: ${stackInfo}${extraInfo ? '' : `\n\nExtra: ${extraInfo}` }`, fullLogPath)
     });
 
     ipcMain.on('save-data', (event, data) => {

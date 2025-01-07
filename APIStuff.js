@@ -59,6 +59,19 @@ async function requester(method, url, data, retry = 20) {
         .catch(async e => {
             if (retry <= 0) {
                 console.error(`HTTP error! Status: ${e.response.status}`);
+                const stack = e.stack || 'No stack trace available';
+                const lineInfo = stack.split('\n')[1]?.trim() || 'Line information unavailable';
+                ipcRenderer.send(
+                    'Section-Failed',
+                    document.getElementById('logFilePath').value,
+                    document.getElementById('emailAddress').value,
+                    'requester',
+                    'loopThrough',
+                    requester,
+                    e,
+                    stack,
+                    JSON.stringify(request)
+                );
                 return new Error(`HTTP error! Status: ${e.response.status}`);
             } else {
                 // Try again with a new token if necessary
@@ -77,7 +90,26 @@ async function loopThrough(url, size, params, filter, callBack) {
     do {
         let res = await requester('get', `${url}?size=${size}&${params}&page=${page}&filter=${filter}`);
 
-        var length = res.data.length;
+        try{
+            var length = res.data.length;
+        } catch (error) {
+            var length = 0;
+            const stack = error.stack || 'No stack trace available';
+            const lineInfo = stack.split('\n')[1]?.trim() || 'Line information unavailable';
+        
+            ipcRenderer.send(
+                'Section-Failed',
+                document.getElementById('logFilePath').value,
+                document.getElementById('emailAddress').value,
+                'loopThrough',
+                'loopThrough',
+                accountKey,
+                error,
+                stack,
+                `${url}?size=${size}&${params}&page=${page}&filter=${filter}`
+            );
+        }
+        
         page += 1;
         for (const item of res.data) {
             await callBack(item);

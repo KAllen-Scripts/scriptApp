@@ -372,12 +372,11 @@ function scheduleJobs(sectionId, scheduleInputs, sectionWrapper) {
             }
 
             const job = schedule.scheduleJob(nextScheduledDate, () => {
-                if (!sectionStatus[sectionId].ongoing) {
-                    sectionStatus[sectionId].ongoing = true;
-                    startSyncForSection(sectionWrapper).finally(() => {
-                        sectionStatus[sectionId].ongoing = false;
-                    });
-                }
+                sectionStatus[sectionId].ongoing = true;
+                globalQueue.push({sectionWrapper:sectionWrapper,sectionId:sectionId})
+                // startSyncForSection(sectionWrapper).finally(() => {
+                //     sectionStatus[sectionId].ongoing = false;
+                // });
             });
 
             sectionStatus[sectionId].scheduledJobs.push(job);
@@ -398,7 +397,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             createSection(section)
         }
     }
-    dailyReset()
+    // dailyReset()
+    startQueue()
 });
 
 

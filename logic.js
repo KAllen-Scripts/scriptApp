@@ -3,10 +3,10 @@ let itemsBeingUpdated = false;
 async function startSyncForSection(section, retry=2) {
     try {
 
-        if (section.querySelector('.section-label-input').value.toLowerCase() == 'the hobby company'){
-            await resetUpdateFlag();
-            await sleep(5000);
-        }
+        // if (section.querySelector('.section-label-input').value.toLowerCase() == 'the hobby company'){
+        //     await resetUpdateFlag();
+        //     await sleep(5000);
+        // }
 
         logStart(section.dataset.id)
         let activateButton = section.querySelector('.activate-button')
@@ -134,6 +134,7 @@ async function startSyncForSection(section, retry=2) {
 async function processData(sectionData) {
     let promiseArr = [];
     let currentStock = {};
+    let warehouseStock = {}
 
     if (sectionData.stockHeader.trim() !== '') {
         promiseArr.push((async () => {
@@ -145,7 +146,7 @@ async function processData(sectionData) {
                 sectionData.binId = binResponse.data[0].binId;
     
                 await loopThrough(`https://${enviroment}/v1/inventory-records`, 1000, 'sortDirection=ASC&sortField=itemId', `[locationId]=={${sectionData.locationId}}%26%26([onHand]!={0}||[quarantined]!={0})%26%26[binId]=={${sectionData.binId}}`, (record) => {
-                        currentStock[record.itemId] = record.onHand;
+                    currentStock[record.itemId] = record.onHand;
                 });
     
                 return true;
@@ -155,6 +156,15 @@ async function processData(sectionData) {
         })());
     }
 
+    if(accountKey == 'accessmodels'){
+        try {
+            await loopThrough(`https://${enviroment}/v1/inventory-records`, 1000, 'sortDirection=ASC&sortField=itemId', `[locationId]=={b0d64007-db4a-4131-9fcd-77f957bf4a06}%26%26([onHand]!={0}||[quarantined]!={0})%26%26[binId]=={3e620410-cd68-48b2-823b-4dfe5d9f3bde}`, (record) => {
+                warehouseStock[record.itemId] = record.onHand;
+            });
+        } catch (error) {
+            return error;
+        }
+    }
 
     sectionData.attributes = {}
     promiseArr.push((async()=>{
@@ -226,13 +236,14 @@ async function processData(sectionData) {
     await updateItems(sectionData)
 
     await Promise.all(promiseArr).then(r=>{
-        for (const i of r){
-            if (i !== true){
+        for (const i in r){
+            if (r[i] !== true){
+                console.error(`error from promise ${i}`)
                 throw new Error(i)
             }
         }
     })
-    await processCSV(sectionData, currentStock);
+    await processCSV(sectionData, currentStock, warehouseStock);
 }
 
 async function updateItems(sectionData) {

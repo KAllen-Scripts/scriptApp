@@ -1,5 +1,6 @@
 let sectionStatus = {};
 let flagResetting = false;
+let globalQueue = []
 // require('dotenv').config();
 const axios = require('axios');
 const JSZip = require("jszip");
@@ -16,9 +17,9 @@ const { Client: SFTPClient } = require('ssh2');
 const { Writable } = require('stream');
 const crypto = require('crypto');
 const enviroment = 'api.stok.ly';
-const accountKey = 'dyproaudio'
-const clientId = '68f9s3e1kl5aaaqfvngg98k7kk'
-const secretKey = '7gan52o0fg3e28ifacr1jutq4oo0g55k51j033mptbq17os5b8t'
+const accountKey = 'accessmodels'
+const clientId = '584gjbgku0qbt2e5selgshi32u'
+const secretKey = '1g51sacef5b0ktaj25hkaafh5dqvr4moepqbrpholl5gtc7eua1v'
 
 const tokensOverMinute = 600;
 const maxTokensToHold = 3;
@@ -188,6 +189,9 @@ function saveFormData() {
 
 async function resetUpdateFlag() {
     try {
+        while (globalQueue.length > 0){
+            await sleep(60000)
+        }
         flagResetting = true
         await saveData({ lastUpdate: false });
         await ipcRenderer.invoke('delete-all-databases');
@@ -216,7 +220,7 @@ function rateLimitedFunction(x = 3) {
 
   // Check if the number of recent calls is less than x
   if (callTimestamps.length < x) {
-    callTimestamps.push(now); // Log this call's timestamp
+    callTimestamps.push(now); // Log this call's timestamp  `11
     return; // Proceed immediately if under the limit
   }
 
@@ -239,4 +243,113 @@ async function dailyReset(){
     } while (1)
 }
 
+async function startQueue(){
+    while (1){
+        await sleep(5000)
+        if (globalQueue.length > 0){
+            let params = globalQueue.shift()
+            console.log(params)
+            await startSyncForSection(params.sectionWrapper).finally(() => {
+                sectionStatus[params.sectionId].ongoing = false;
+            });
+        }
+    }
+}
+
+
 let saveDataDebug
+// saveDataDebug = {
+//     "globalSettings": {
+//         "logFilePath": "C:\\Users\\Kenny\\Downloads",
+//         "emailAddress": "kenny.allen996@gmail.com"
+//     },
+//     "sections": [
+//         {
+//             "isActive": true,
+//             "id": "41csqm6mrauim38p8cvz",
+//             "label": "The Hobby Company",
+//             "url": "https://www.hobbyco.net/content/files/product%20feeds/sanastore/product%20feed%20export/productfeed.csv",
+//             "fileInput": "",
+//             "authorization": {
+//                 "userName": "",
+//                 "password": ""
+//             },
+//             "stockHeader": "InventoryLevel",
+//             "location": {
+//                 "location": "The Hobby Company",
+//                 "bin": "default"
+//             },
+//             "identifiers": {
+//                 "stokly": "SKU",
+//                 "supplier": "Skuid"
+//             },
+//             "attributes": [
+//                 {
+//                     "name": "",
+//                     "header": ""
+//                 }
+//             ],
+//             "schedule": [
+//                 {
+//                     "day": "Monday",
+//                     "time": "08:00"
+//                 },
+//                 {
+//                     "day": "Tuesday",
+//                     "time": "08:00"
+//                 },
+//                 {
+//                     "day": "Wednesday",
+//                     "time": "08:00"
+//                 },
+//                 {
+//                     "day": "Thursday",
+//                     "time": "08:00"
+//                 },
+//                 {
+//                     "day": "Friday",
+//                     "time": "08:00"
+//                 },
+//                 {
+//                     "day": "Saturday",
+//                     "time": "08:00"
+//                 },
+//                 {
+//                     "day": "Sunday",
+//                     "time": "08:00"
+//                 },
+//                 {
+//                     "day": "Friday",
+//                     "time": "09:35"
+//                 }
+//             ],
+//             "stockLevels": [
+//                 {
+//                     "name": "In stock",
+//                     "quantity": "2"
+//                 },
+//                 {
+//                     "name": "Out of stock",
+//                     "quantity": "0"
+//                 },
+//                 {
+//                     "name": "Low stock",
+//                     "quantity": "0"
+//                 },
+//                 {
+//                     "name": "Good Stock",
+//                     "quantity": "2"
+//                 }
+//             ],
+//             "inputMode": "Headers",
+//             "fileType": "CSV",
+//             "delimiter": ";",
+//             "ftp": {
+//                 "address": "",
+//                 "port": "",
+//                 "filepath": ""
+//             },
+//             "inputType": "url"
+//         }
+//     ]
+// }

@@ -1,4 +1,4 @@
-async function processCSV(sectionData, currentStock) {
+async function processCSV(sectionData, currentStock, warehouseStock) {
     try {
         let stockUpdate = {
             "locationId": sectionData.locationId,
@@ -19,9 +19,6 @@ async function processCSV(sectionData, currentStock) {
                     try {
                         let itemBatch = {}
                         for (const row of results.data) {
-                            if (row.stockcode == 'EQLED055'){
-                                console.log(row)
-                            }
                             itemBatch[row[sectionData.supplierIdentifier.toLowerCase()].toLowerCase()] = row
                             if (Object.keys(itemBatch).length >= 200){
                                 await processBatch(itemBatch)
@@ -57,6 +54,48 @@ async function processCSV(sectionData, currentStock) {
                         stockLevelValue = stockLevel
                     }
                     let quantity = parseInt((stockLevelValue || 0)) - parseInt((currentStock?.[itemid] || 0));
+
+                    if (accountKey == 'accessmodels'){
+                        attributeUpdateArr.push((async ()=>{
+                            try {
+                                if (quantity > 0 && warehouseStock[itemid] <= 0){
+                                    await requester('patch', `https://api.stok.ly/v0/items/${itemid}`, {
+                                        "attributes": [
+                                            {
+                                                "itemAttributeId": "b1efd355-7960-43e3-b7d5-a3dd43af2094",
+                                                "value": sectionData.supplier
+                                            }
+                                        ],
+                                        "appendAttributes": true,
+                                        "itemId": itemid
+                                    })
+                                } else if (warehouseStock[itemid] > 0) {
+                                    await requester('patch', `https://api.stok.ly/v0/items/${itemid}`, {
+                                        "attributes": [
+                                            {
+                                                "itemAttributeId": "b1efd355-7960-43e3-b7d5-a3dd43af2094",
+                                                "value": 'In Stock'
+                                            }
+                                        ],
+                                        "appendAttributes": true,
+                                        "itemId": itemid
+                                    })
+                                } else {
+                                    await requester('patch', `https://api.stok.ly/v0/items/${itemid}`, {
+                                        "attributes": [
+                                            {
+                                                "itemAttributeId": "b1efd355-7960-43e3-b7d5-a3dd43af2094",
+                                                "value": 'No Stock'
+                                            }
+                                        ],
+                                        "appendAttributes": true,
+                                        "itemId": itemid
+                                    })
+                                }
+                            } catch {}
+                        })())
+                    }
+
                     if(isNaN(quantity)){
                         failedStockUpdates.push({...itemFromdb})
                     } else {
